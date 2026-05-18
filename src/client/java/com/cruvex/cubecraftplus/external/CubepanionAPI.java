@@ -1,8 +1,10 @@
 package com.cruvex.cubecraftplus.external;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
-import com.cruvex.cubecraftplus.model.*;
+import com.cruvex.cubecraftplus.model.BatchRequest;
 import com.cruvex.cubecraftplus.model.Game;
+import com.cruvex.cubecraftplus.model.Leaderboard;
+import com.cruvex.cubecraftplus.model.LeaderboardRow;
 import com.cruvex.cubecraftplus.model.PlayerLeaderboard;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
@@ -12,6 +14,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +26,7 @@ public class CubepanionAPI {
     private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
 
     private final TypeToken<List<Game>> gamesToken = new TypeToken<>() {};
-//    private final TypeToken<List<LeaderboardRow>> lbRowsToken = new TypeToken<>() {};
+    private final TypeToken<List<LeaderboardRow>> lbRowsToken = new TypeToken<>() {};
 //  private final TypeToken<List<ChestLocation>> chestLocationToken = new TypeToken<>() {};
 //  private final TypeToken<List<GameMap>> gameMapsToken = new TypeToken<>() {};
 
@@ -46,7 +49,7 @@ public class CubepanionAPI {
         instance = this;
     }
 
-    public static CubepanionAPI I() {
+    public static CubepanionAPI getInstance() {
         if (instance == null) instance = new CubepanionAPI();
         return instance;
     }
@@ -168,10 +171,10 @@ public class CubepanionAPI {
     return this.gameById.get(id);
   }
 
-//  @Nullable
-//  private Game getGame(String game) {
-//    return this.games.get(game);
-//  }
+  @Nullable
+  private Game getGame(String game) {
+    return this.games.get(game);
+  }
 
 //  @Nullable
 //  public Game getGame(CubeGame cubeGame) {
@@ -182,24 +185,24 @@ public class CubepanionAPI {
 //  public Game getNotNullGame(String game) {
 //    return this.games.getOrDefault(game, Game.UNKNOWN);
 //  }
-//
-//  @Nullable
-//  public Game tryGame(String game) {
-//    return this.getGame(game.replace(" ", "_").toLowerCase().trim());
-//  }
-//
+
+  @Nullable
+  public Game tryGame(String game) {
+    return this.getGame(game.replace(" ", "_").toLowerCase().trim());
+  }
+
+  public Collection<Game> getAllGames() {
+    return this.gameById.values();
+  }
+
 //  public int totalGames() {
 //    return new HashSet<>(this.games.values()).size();
 //  }
 //
-//  public CompletableFuture<Leaderboard> getLeaderboard(Game game, int lower, int upper) {
-//    return this.get(String.format("%s/Leaderboard/game/%s?lower=%s&upper=%s",
-//        this.baseUrlv2, game.name(), lower, upper), Leaderboard.class);
-//  }
-//
-//  public CompletableFuture<Leaderboard> getLeaderboard(Game game) {
-//    return this.get(this.baseUrlv2+"/Leaderboard/game/"+game.name(), Leaderboard.class);
-//  }
+  public CompletableFuture<Leaderboard> getLeaderboard(Game game, int lower, int upper) {
+    return this.get(String.format("%s/Leaderboard/game/%s?lower=%s&upper=%s",
+        this.baseUrlv2, game.name(), lower, upper), Leaderboard.class);
+  }
 
   public CompletableFuture<PlayerLeaderboard> getPlayerLeaderboard(String name) {
     return this.get(this.baseUrlv2+"/Leaderboard/player/"+name, PlayerLeaderboard.class);
@@ -248,26 +251,39 @@ public class CubepanionAPI {
 //    return future;
 //  }
 
-//  public CompletableFuture<List<LeaderboardRow>> batch(Game game, List<String> players) {
-//    var batchRequest = new BatchRequest(game.name(), players);
-//
-//      String json = gson.toJson(batchRequest);
-//
-//      HttpRequest request = HttpRequest.newBuilder()
-//              .uri(URI.create(baseUrlv2 + "/Leaderboard/batch"))
-//              .header("Content-Type", "application/json")
-//              .header("User-Agent", "CubeCraftPlus")
-//              .POST(HttpRequest.BodyPublishers.ofString(json))
-//              .build();
-//
-//      return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-//              .thenCompose(response -> {
-//                  if (response.statusCode() != 200) {
-//                      return CompletableFuture.failedFuture(new Exception("Server returned status code " + response.statusCode()));
-//                  }
-//                  return CompletableFuture.completedFuture(null);
-//              });
-//  }
+  public CompletableFuture<List<LeaderboardRow
+          >> batch(Game game, List<String> players) {
+      var batchRequest = new BatchRequest(game.name(), players);
+      String json = gson.toJson(batchRequest);
+
+      HttpRequest request = HttpRequest.newBuilder()
+              .uri(URI.create(baseUrl + "/Leaderboard/batch"))
+              .header("Content-Type", "application/json")
+              .header("User-Agent", "CubeCraftPlus")
+              .POST(HttpRequest.BodyPublishers.ofString(json))
+              .build();
+
+      return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+              .thenCompose(response -> {
+                  if (response.statusCode() != 200) {
+                      LOGGER.debug("Failed batch request to {}, {}", request.uri(), response.statusCode());
+                      return CompletableFuture.failedFuture(
+                              new IllegalArgumentException("CubepanionAPI batch returned non-200: " + response.statusCode())
+                      );
+                  }
+
+                  if (response.body() == null || response.body().isEmpty()) {
+                      return CompletableFuture.completedFuture(List.of());
+                  }
+
+                  try {
+                      List<LeaderboardRow> rows = gson.fromJson(response.body(), lbRowsToken);
+                      return CompletableFuture.completedFuture(rows == null ? List.of() : rows);
+                  } catch (JsonSyntaxException e) {
+                      return CompletableFuture.failedFuture(e);
+                  }
+              });
+  }
 
     private <T> CompletableFuture<T> get(String url, Class<T> clazz) {
         HttpRequest request = HttpRequest.newBuilder()

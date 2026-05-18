@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"id": "cubecraft-plus",
 	"version": "${version}",
-	"name": "CubeCraft Plus",
+	"name": "CubeCraft+",
 	"description": "QOL Mod for CubeCraft",
 	"authors": [
 		"cruvex"
@@ -16,7 +16,7 @@
 	"environment": "client",
 	"entrypoints": {
 		"client": [
-			"com.cruvex.cubecraftplus.client.CubeCraftPlusClient"
+			"com.cruvex.cubecraftplus.CubeCraftPlusClient"
 		]
 	},
 	"mixins": [
