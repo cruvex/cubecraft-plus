@@ -1,11 +1,16 @@
 package com.cruvex.cubecraftplus.managers;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
+import com.cruvex.cubecraftplus.events.CubeEvents;
 import com.cruvex.cubecraftplus.events.ScoreboardEvents;
 import com.cruvex.cubecraftplus.model.CubeGame;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.world.scores.Objective;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
+
+import java.util.Locale;
 
 public class CubeCraftManager {
 
@@ -48,6 +53,13 @@ public class CubeCraftManager {
     }
 
     public void setCurrentGame(CubeGame currentGame) {
+        if (this.currentGame == currentGame) return;
         this.currentGame = currentGame;
+        CubeEvents.GAME_JOIN.invoker().onGameJoin(currentGame);
+    }
+
+    public boolean isOnCubeCraft() {
+        ServerData server = Minecraft.getInstance().getCurrentServer();
+        return server != null && server.ip != null && server.ip.toLowerCase(Locale.ROOT).contains("cubecraft");
     }
 }

@@ -2,6 +2,8 @@ package com.cruvex.cubecraftplus;
 
 import com.cruvex.cubecraftplus.commands.CommandManager;
 import com.cruvex.cubecraftplus.external.CubepanionAPI;
+import com.cruvex.cubecraftplus.managers.AutoVoteManager;
+import com.cruvex.cubecraftplus.managers.ConfigManager;
 import com.cruvex.cubecraftplus.managers.CubeCraftManager;
 import net.fabricmc.api.ClientModInitializer;
 import org.slf4j.Logger;
@@ -17,6 +19,8 @@ public class CubeCraftPlusClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		LOGGER.info("{} client init", MOD_ID);
 		LOGGER.debug("{} DEBUG", MOD_ID);
+
+		ConfigManager.getInstance().init();
 		// TODO: only load on CubeCraft join
 		CubepanionAPI.getInstance().loadInitialData();
 
@@ -25,5 +29,8 @@ public class CubeCraftPlusClient implements ClientModInitializer {
 
 		// TODO: only load on CubeCraft join
 		CubeCraftManager.getInstance().init();
+
+		// TODO: only load on CubeCraft join
+		AutoVoteManager.getInstance().init();
 	}
 }
