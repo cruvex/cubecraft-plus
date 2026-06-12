@@ -20,7 +20,6 @@ public class ModConfig {
         public LuckyIslands luckyIslands = new LuckyIslands();
         public PillarsOfFortune pillarsOfFortune = new PillarsOfFortune();
         public BedWars bedWars = new BedWars();
-        public Ender ender = new Ender();
     }
 
     public static class EggWars {
@@ -47,10 +46,6 @@ public class ModConfig {
 
     public static class BedWars {
         public TwoOptionsMode modifier = TwoOptionsMode.RIGHT;
-    }
-
-    public static class Ender {
-        public TwoOptionsMode mode = TwoOptionsMode.NONE;
     }
 
     public enum TwoOptionsMode {
@@ -138,9 +133,6 @@ public class ModConfig {
 
         if (autoVote.bedWars == null) autoVote.bedWars = new BedWars();
         autoVote.bedWars.modifier = or(autoVote.bedWars.modifier, new BedWars().modifier);
-
-        if (autoVote.ender == null) autoVote.ender = new Ender();
-        autoVote.ender.mode = or(autoVote.ender.mode, new Ender().mode);
     }
 
     private static <T> T or(T value, T fallback) {

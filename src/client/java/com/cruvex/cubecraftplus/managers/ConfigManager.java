@@ -75,4 +75,14 @@ public class ConfigManager {
     public ModConfig getConfig() {
         return config;
     }
+
+    public ModConfig copyConfig() {
+        return GSON.fromJson(GSON.toJson(config), ModConfig.class);
+    }
+
+    public void update(ModConfig newConfig) {
+        newConfig.validate();
+        this.config = newConfig;
+        save();
+    }
 }

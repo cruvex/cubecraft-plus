@@ -1,0 +1,80 @@
+{
+	"cubecraftplus.autovote.title": "Auto Vote",
+	"cubecraftplus.autovote.enabled": "Enabled",
+
+	"cubecraftplus.autovote.group.eggWars": "EggWars",
+	"cubecraftplus.autovote.group.skyWars": "SkyWars",
+	"cubecraftplus.autovote.group.luckyIslands": "Lucky Islands",
+	"cubecraftplus.autovote.group.pillarsOfFortune": "Pillars of Fortune",
+	"cubecraftplus.autovote.group.bedWars": "BedWars",
+
+	"cubecraftplus.autovote.eggWarsItems": "Items",
+	"cubecraftplus.autovote.eggWarsItems.left": "Ultra Hardcore",
+	"cubecraftplus.autovote.eggWarsItems.middle": "Normal",
+	"cubecraftplus.autovote.eggWarsItems.right": "Overpowered",
+	"cubecraftplus.autovote.eggWarsItems.none": "Don't vote",
+
+	"cubecraftplus.autovote.eggWarsHealth": "Health",
+	"cubecraftplus.autovote.eggWarsHealth.left": "Normal",
+	"cubecraftplus.autovote.eggWarsHealth.right": "Double",
+	"cubecraftplus.autovote.eggWarsHealth.none": "Don't vote",
+
+	"cubecraftplus.autovote.eggWarsPerk": "Perk",
+	"cubecraftplus.autovote.eggWarsPerk.left": "No Perk",
+	"cubecraftplus.autovote.eggWarsPerk.right": "Free Perk",
+	"cubecraftplus.autovote.eggWarsPerk.none": "Don't vote",
+
+	"cubecraftplus.autovote.skyWarsChests": "Chests",
+	"cubecraftplus.autovote.skyWarsChests.left": "Basic",
+	"cubecraftplus.autovote.skyWarsChests.middle": "Normal",
+	"cubecraftplus.autovote.skyWarsChests.right": "Overpowered",
+	"cubecraftplus.autovote.skyWarsChests.none": "Don't vote",
+
+	"cubecraftplus.autovote.skyWarsProjectiles": "Projectiles",
+	"cubecraftplus.autovote.skyWarsProjectiles.left": "No Projectiles",
+	"cubecraftplus.autovote.skyWarsProjectiles.middle": "Normal Projectiles",
+	"cubecraftplus.autovote.skyWarsProjectiles.right": "Soft Blocks",
+	"cubecraftplus.autovote.skyWarsProjectiles.none": "Don't vote",
+
+	"cubecraftplus.autovote.skyWarsTime": "Time",
+	"cubecraftplus.autovote.skyWarsTime.left": "Day",
+	"cubecraftplus.autovote.skyWarsTime.middle": "Sunset",
+	"cubecraftplus.autovote.skyWarsTime.right": "Night",
+	"cubecraftplus.autovote.skyWarsTime.none": "Don't vote",
+
+	"cubecraftplus.autovote.luckyIslandsBlocks": "Blocks",
+	"cubecraftplus.autovote.luckyIslandsBlocks.left": "Blessed",
+	"cubecraftplus.autovote.luckyIslandsBlocks.middleLeft": "Normal",
+	"cubecraftplus.autovote.luckyIslandsBlocks.middleRight": "Overpowered",
+	"cubecraftplus.autovote.luckyIslandsBlocks.right": "Crazy",
+	"cubecraftplus.autovote.luckyIslandsBlocks.none": "Don't vote",
+
+	"cubecraftplus.autovote.luckyIslandsTime": "Time",
+	"cubecraftplus.autovote.luckyIslandsTime.left": "Day",
+	"cubecraftplus.autovote.luckyIslandsTime.middle": "Sunset",
+	"cubecraftplus.autovote.luckyIslandsTime.right": "Night",
+	"cubecraftplus.autovote.luckyIslandsTime.none": "Don't vote",
+
+	"cubecraftplus.autovote.pofGameMode": "Game Mode",
+	"cubecraftplus.autovote.pofGameMode.left": "Normal",
+	"cubecraftplus.autovote.pofGameMode.middleLeft": "Shuffle",
+	"cubecraftplus.autovote.pofGameMode.middleRight": "Balanced",
+	"cubecraftplus.autovote.pofGameMode.right": "Swapper",
+	"cubecraftplus.autovote.pofGameMode.none": "Don't vote",
+
+	"cubecraftplus.autovote.pofMapMode": "Map Mode",
+	"cubecraftplus.autovote.pofMapMode.left": "Normal",
+	"cubecraftplus.autovote.pofMapMode.middleLeft": "Rising Lava",
+	"cubecraftplus.autovote.pofMapMode.middle": "Portals",
+	"cubecraftplus.autovote.pofMapMode.middleRight": "Ablockalypse",
+	"cubecraftplus.autovote.pofMapMode.right": "Fragile Blocks",
+	"cubecraftplus.autovote.pofMapMode.none": "Don't vote",
+
+	"cubecraftplus.autovote.bedWarsModifier": "Modifier",
+	"cubecraftplus.autovote.bedWarsModifier.left": "Normal",
+	"cubecraftplus.autovote.bedWarsModifier.right": "Faster Gens",
+	"cubecraftplus.autovote.bedWarsModifier.none": "Don't vote",
+
+	"cubecraftplus.text.save": "Save",
+	"cubecraftplus.text.cancel": "Cancel"
+}

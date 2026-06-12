@@ -15,8 +15,8 @@ public final class GameVotes {
     /**
      * One vote: which category item to click in the main voting menu, which option to
      * click in the vote menu, and the vote menu's title. Games without a category menu
-     * (BedWars, Ender) use categorySlot -1: the menu opened by the voting item is the
-     * vote menu itself and has no return button.
+     * (BedWars) use categorySlot -1: the menu opened by the voting item is the vote
+     * menu itself and has no return button.
      */
     public record VotePair(int categorySlot, int voteSlot, String submenuTitle) {
         public boolean hasSubmenu() {
@@ -45,8 +45,6 @@ public final class GameVotes {
                     pair(14, config.pillarsOfFortune.mapMode.slot, "Map Modifier"));
             case BEDWARS -> votes(
                     pair(-1, config.bedWars.modifier.slot, "Modifiers"));
-            case ENDER -> votes(
-                    pair(-1, config.ender.mode.slot, ""));
             default -> List.of();
         };
     }

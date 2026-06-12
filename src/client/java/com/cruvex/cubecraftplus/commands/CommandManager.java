@@ -7,6 +7,7 @@ public class CommandManager {
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register(((dispatcher, registryAccess) -> {
             LeaderboardCommand.register(dispatcher);
+            ConfigCommand.register(dispatcher);
         }));
     }
 }
