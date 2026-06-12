@@ -31,14 +31,26 @@ jobs:
       - name: Make gradle wrapper executable
         run: chmod +x ./gradlew
 
+      # On release dispatches, override mod_version with the tag (minus the "v" prefix)
+      # so the jar name and fabric.mod.json version match the release.
+      - name: Set release version
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          echo "GRADLE_VERSION_ARG=-Pmod_version=${TAG#v}" >> "$GITHUB_ENV"
+
       - name: Build
-        run: ./gradlew build
+        run: ./gradlew build $GRADLE_VERSION_ARG
+
+      # action-gh-release does not support "!" exclusion globs, so drop the
+      # sources jar before uploading instead.
+      - name: Remove sources jar
+        if: github.event_name == 'workflow_dispatch'
+        run: rm -f build/libs/*-sources.jar
 
       - name: Upload to GitHub Release
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
-          files: |
-            build/libs/*.jar
-            !build/libs/*-sources*.jar
+          files: build/libs/*.jar
