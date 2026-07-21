@@ -1,11 +1,14 @@
 package com.cruvex.cubecraftplus.commands;
 
 import com.cruvex.cubecraftplus.gui.screen.AutoVoteConfigScreen;
+import com.cruvex.cubecraftplus.util.Debug;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 public class ConfigCommand {
 
@@ -18,7 +21,21 @@ public class ConfigCommand {
         return ClientCommandManager.literal(name)
                 .executes(ctx -> openConfigScreen(ctx.getSource().getClient()))
                 .then(ClientCommandManager.literal("config")
-                        .executes(ctx -> openConfigScreen(ctx.getSource().getClient())));
+                        .executes(ctx -> openConfigScreen(ctx.getSource().getClient())))
+                .then(ClientCommandManager.literal("debug")
+                        .executes(ctx -> setDebug(ctx.getSource(), !Debug.isEnabled()))
+                        .then(ClientCommandManager.literal("on")
+                                .executes(ctx -> setDebug(ctx.getSource(), true)))
+                        .then(ClientCommandManager.literal("off")
+                                .executes(ctx -> setDebug(ctx.getSource(), false))));
+    }
+
+    private static int setDebug(FabricClientCommandSource source, boolean enabled) {
+        Debug.setEnabled(enabled);
+        source.sendFeedback(Component.literal("Debug mode ")
+                .append(Component.literal(enabled ? "enabled" : "disabled")
+                        .withStyle(enabled ? ChatFormatting.GREEN : ChatFormatting.RED)));
+        return 1;
     }
 
     private static int openConfigScreen(Minecraft client) {

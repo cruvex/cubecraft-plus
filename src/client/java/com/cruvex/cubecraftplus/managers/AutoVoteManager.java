@@ -1,10 +1,10 @@
 package com.cruvex.cubecraftplus.managers;
 
-import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.events.CubeEvents;
 import com.cruvex.cubecraftplus.model.GameVotes;
 import com.cruvex.cubecraftplus.model.GameVotes.VotePair;
+import com.cruvex.cubecraftplus.util.Debug;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -21,7 +21,6 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Locale;
@@ -42,8 +41,6 @@ import java.util.regex.Pattern;
  * is still open. A per-state timeout aborts a stuck flow.
  */
 public class AutoVoteManager {
-
-    private final Logger LOGGER = CubeCraftPlusClient.LOGGER;
 
     private static AutoVoteManager instance;
 
@@ -105,7 +102,7 @@ public class AutoVoteManager {
         }
 
         if (state != State.IDLE && ++stateTicks > STATE_TIMEOUT_TICKS) {
-            LOGGER.debug("AutoVote: state {} timed out, aborting", state);
+            Debug.log("AutoVote: state {} timed out, aborting", state);
             attemptedThisRound = true; // retried via the "starting in 5 seconds" chat line
             setState(State.IDLE);
             return;
@@ -139,7 +136,7 @@ public class AutoVoteManager {
         votes = GameVotes.forGame(CubeCraftManager.getInstance().getCurrentGame(), config);
         if (votes.isEmpty()) return; // no votable game, or every category set to NONE
 
-        LOGGER.debug("AutoVote: voting item detected for {}, arming", CubeCraftManager.getInstance().getCurrentGame());
+        Debug.log("AutoVote: voting item detected for {}, arming", CubeCraftManager.getInstance().getCurrentGame());
         // Select the slot now so the carried-item sync reaches the server before the use packet
         player.getInventory().setSelectedSlot(VOTING_HOTBAR_SLOT);
         delayTicks = ARM_DELAY_TICKS;
@@ -156,7 +153,7 @@ public class AutoVoteManager {
         useVotingItem(client, player);
         attemptedThisRound = true;
         voteIndex = 0;
-        LOGGER.debug("AutoVote: used voting item, waiting for first menu");
+        Debug.log("AutoVote: used voting item, waiting for first menu");
         setState(votes.get(0).hasSubmenu() ? State.OPENING_MAIN : State.OPENING_SUB);
     }
 
@@ -191,7 +188,7 @@ public class AutoVoteManager {
         if (stateTicks % USE_RETRY_TICKS != 0) return false;
         if (!isVotingItem(player.getInventory().getItem(VOTING_HOTBAR_SLOT))) return false;
 
-        LOGGER.debug("AutoVote: no menu after {} ticks, using voting item again", stateTicks);
+        Debug.log("AutoVote: no menu after {} ticks, using voting item again", stateTicks);
         useVotingItem(client, player);
         return true;
     }
@@ -206,7 +203,7 @@ public class AutoVoteManager {
 
         clickSlot(client, player, menu, vote.categorySlot());
         lastContainerId = menu.containerId;
-        LOGGER.debug("AutoVote: clicked category slot {} ({})", vote.categorySlot(), vote.submenuTitle());
+        Debug.log("AutoVote: clicked category slot {} ({})", vote.categorySlot(), vote.submenuTitle());
         setState(State.OPENING_SUB);
     }
 
@@ -220,7 +217,7 @@ public class AutoVoteManager {
         if (menu == null || !isPopulated(menu, vote.voteSlot())) return; // retry next tick
 
         clickSlot(client, player, menu, vote.voteSlot());
-        LOGGER.debug("AutoVote: voted slot {} in '{}'", vote.voteSlot(), vote.submenuTitle());
+        Debug.log("AutoVote: voted slot {} in '{}'", vote.voteSlot(), vote.submenuTitle());
         delayTicks = RETURN_DELAY_TICKS;
         setState(State.VOTING);
     }
@@ -241,14 +238,14 @@ public class AutoVoteManager {
             setState(votes.get(voteIndex).hasSubmenu() ? State.OPENING_MAIN : State.OPENING_SUB);
         } else {
             player.closeContainer();
-            LOGGER.debug("AutoVote: all votes cast");
+            Debug.log("AutoVote: all votes cast");
             setState(State.IDLE);
         }
     }
 
     private void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
         if (state == State.IDLE) return;
-        LOGGER.debug("AutoVote: screen opened in state {}: '{}'", state, screen.getTitle().getString());
+        Debug.log("AutoVote: screen opened in state {}: '{}'", state, screen.getTitle().getString());
     }
 
     private void onGameMessage(Component message, boolean overlay) {
@@ -261,14 +258,14 @@ public class AutoVoteManager {
         Matcher voteMatcher = VOTE_CONFIRMED_PATTERN.matcher(text);
         if (voteMatcher.find()) {
             if (voteMatcher.group(1).equalsIgnoreCase(client.player.getGameProfile().name())) {
-                LOGGER.debug("AutoVote: own vote confirmed in chat");
+                Debug.log("AutoVote: own vote confirmed in chat");
                 voteConfirmed = true;
             }
             return;
         }
 
         if (!voteConfirmed && state == State.IDLE && GAME_STARTING_PATTERN.matcher(text).find()) {
-            LOGGER.debug("AutoVote: game starting without confirmed vote, allowing retry");
+            Debug.log("AutoVote: game starting without confirmed vote, allowing retry");
             attemptedThisRound = false;
         }
     }
@@ -300,7 +297,7 @@ public class AutoVoteManager {
     }
 
     private void reset(String reason) {
-        LOGGER.debug("AutoVote: reset ({})", reason);
+        Debug.log("AutoVote: reset ({})", reason);
         setState(State.IDLE);
         delayTicks = 0;
         voteIndex = 0;

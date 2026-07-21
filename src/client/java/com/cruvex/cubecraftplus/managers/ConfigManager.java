@@ -2,6 +2,7 @@ package com.cruvex.cubecraftplus.managers;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.config.ModConfig;
+import com.cruvex.cubecraftplus.util.Debug;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
@@ -66,7 +67,7 @@ public class ConfigManager {
             try (Writer writer = Files.newBufferedWriter(configPath)) {
                 GSON.toJson(config, writer);
             }
-            LOGGER.debug("Saved config to {}", configPath);
+            Debug.log("Saved config to {}", configPath);
         } catch (IOException e) {
             LOGGER.warn("Failed to save config to {}", configPath, e);
         }

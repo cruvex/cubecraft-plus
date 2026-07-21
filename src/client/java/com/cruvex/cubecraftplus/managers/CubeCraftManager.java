@@ -1,20 +1,17 @@
 package com.cruvex.cubecraftplus.managers;
 
-import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.events.CubeEvents;
 import com.cruvex.cubecraftplus.events.ScoreboardEvents;
 import com.cruvex.cubecraftplus.model.CubeGame;
+import com.cruvex.cubecraftplus.util.Debug;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.world.scores.Objective;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
 
 import java.util.Locale;
 
 public class CubeCraftManager {
-
-    private final Logger LOGGER = CubeCraftPlusClient.LOGGER;
 
     private static CubeCraftManager instance;
 
@@ -39,12 +36,12 @@ public class CubeCraftManager {
         var gameOptional = CubeGame.fromObjectiveTitle(objective.getDisplayName());
 
         if (gameOptional.isEmpty()) {
-            LOGGER.debug("onAddObjective: No game found for objective: {}", objective.getDisplayName() == null ? "(none)" : objective.getDisplayName().getString());
+            Debug.log("onAddObjective: No game found for objective: {}", objective.getDisplayName() == null ? "(none)" : objective.getDisplayName().getString());
             return;
         }
 
         CubeGame game = gameOptional.get();
-        LOGGER.debug("onAddObjective: Game found: {}", game.name());
+        Debug.log("onAddObjective: Game found: {}", game.name());
         this.setCurrentGame(game);
     }
 

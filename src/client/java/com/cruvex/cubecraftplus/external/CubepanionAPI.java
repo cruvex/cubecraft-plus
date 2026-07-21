@@ -6,6 +6,7 @@ import com.cruvex.cubecraftplus.model.Game;
 import com.cruvex.cubecraftplus.model.Leaderboard;
 import com.cruvex.cubecraftplus.model.LeaderboardRow;
 import com.cruvex.cubecraftplus.model.PlayerLeaderboard;
+import com.cruvex.cubecraftplus.util.Debug;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
@@ -266,7 +267,7 @@ public class CubepanionAPI {
       return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
               .thenCompose(response -> {
                   if (response.statusCode() != 200) {
-                      LOGGER.debug("Failed batch request to {}, {}", request.uri(), response.statusCode());
+                      Debug.log("Failed batch request to {}, {}", request.uri(), response.statusCode());
                       return CompletableFuture.failedFuture(
                               new IllegalArgumentException("CubepanionAPI batch returned non-200: " + response.statusCode())
                       );
@@ -296,14 +297,14 @@ public class CubepanionAPI {
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenCompose(response -> {
                     if (response.statusCode() != 200) {
-                        LOGGER.debug("Failed to make get request to {}, {}", url, response.statusCode());
+                        Debug.log("Failed to make get request to {}, {}", url, response.statusCode());
                         return CompletableFuture.failedFuture(
                                 new IllegalArgumentException("CubepanionAPI returned a non 200 status code: " + response.statusCode())
                         );
                     }
 
                     if (response.body() == null || response.body().isEmpty()) {
-                        LOGGER.debug("CubepanionAPI returned an empty response");
+                        Debug.log("CubepanionAPI returned an empty response");
                         return CompletableFuture.completedFuture(null);
                     }
 
@@ -328,14 +329,14 @@ public class CubepanionAPI {
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenCompose(response -> {
                     if (response.statusCode() != 200) {
-                        LOGGER.debug("Failed to make get request to {}, {}", url, response.statusCode());
+                        Debug.log("Failed to make get request to {}, {}", url, response.statusCode());
                         return CompletableFuture.failedFuture(
                                 new IllegalArgumentException("CubepanionAPI returned a non 200 status code: " + response.statusCode())
                         );
                     }
 
                     if (response.body() == null || response.body().isEmpty()) {
-                        LOGGER.debug("CubepanionAPI returned an empty response");
+                        Debug.log("CubepanionAPI returned an empty response");
                         return CompletableFuture.completedFuture(null);
                     }
 
