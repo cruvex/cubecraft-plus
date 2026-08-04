@@ -1,4 +1,10 @@
 {
+	"cubecraftplus.config.title": "CubeCraft+",
+
+	"cubecraftplus.leaderboard.title": "Leaderboard",
+	"cubecraftplus.leaderboard.submit": "Submit leaderboards",
+	"cubecraftplus.leaderboard.submit.tooltip": "Sends leaderboards to Cubepanion after paging through every page of one in-game.",
+
 	"cubecraftplus.autovote.title": "Auto Vote",
 	"cubecraftplus.autovote.enabled": "Enabled",
 

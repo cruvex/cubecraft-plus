@@ -4,8 +4,10 @@ import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.model.BatchRequest;
 import com.cruvex.cubecraftplus.model.Game;
 import com.cruvex.cubecraftplus.model.Leaderboard;
+import com.cruvex.cubecraftplus.model.LeaderboardConfiguration;
 import com.cruvex.cubecraftplus.model.LeaderboardRow;
 import com.cruvex.cubecraftplus.model.PlayerLeaderboard;
+import com.cruvex.cubecraftplus.model.Submission;
 import com.cruvex.cubecraftplus.util.Debug;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
@@ -36,8 +38,10 @@ public class CubepanionAPI {
     private final String baseUrlv2 = System.getenv("DEV") == null ?
       "https://cubepanion.ameliah.art/api/v2" : "http://192.168.0.193:5050/api/v2";
 
-    private final Map<String, Game> games = new HashMap<>();
-    private final Map<Integer, Game> gameById = new HashMap<>();
+    // Swapped rather than mutated on reload: the client thread reads these while an HTTP thread writes
+    private volatile Map<String, Game> games = Map.of();
+    private volatile Map<Integer, Game> gameById = Map.of();
+    private volatile LeaderboardConfiguration leaderboardConfiguration = LeaderboardConfiguration.DISABLED;
 //  private final List<ChestLocation> chestLocations = new ArrayList<>();
 //  private final HashMap<Integer, HashMap<String, AbstractGameMap>> convertedGameMaps = new HashMap<>();
 
@@ -55,8 +59,15 @@ public class CubepanionAPI {
         return instance;
     }
 
+  /** Run on every cube join, not once at startup: this data changes server-side. */
   public void loadInitialData() {
     LOGGER.info("Loading initial data from {} & {}", this.baseUrl, this.baseUrlv2);
+
+    this.loadLeaderboardConfiguration();
+    this.loadGames();
+  }
+
+  private void loadGames() {
     this.getGames()
         .exceptionallyAsync(ex -> {
             LOGGER.error("Failed to load games, some features may not work correctly {}", ex);
@@ -67,13 +78,17 @@ public class CubepanionAPI {
             return;
           }
 
+          Map<String, Game> byName = new HashMap<>();
+          Map<Integer, Game> byId = new HashMap<>();
           for (var game : games) {
-            this.gameById.put(game.id(), game);
+            byId.put(game.id(), game);
 
-            this.games.put(game.name(), game);
-            this.games.put(game.displayName(), game);
-            game.aliases().forEach(a -> this.games.put(a, game));
+            byName.put(game.name(), game);
+            byName.put(game.displayName(), game);
+            game.aliases().forEach(a -> byName.put(a, game));
           }
+          this.games = byName;
+          this.gameById = byId;
 
             LOGGER.info("Loaded {} games", games.size());
         })
@@ -81,6 +96,7 @@ public class CubepanionAPI {
             LOGGER.error("Failed to load games, some features may not work correctly {}", ex);
           return null;
         });
+  }
 
 //    this.loadChestLocations()
 //        .exceptionallyAsync(ex -> {
@@ -131,7 +147,6 @@ public class CubepanionAPI {
 //            LOGGER.error("Failed to load game maps, some features may not work correctly {}", ex);
 //          return null;
 //        });
-  }
 
 //  public boolean hasMaps(CubeGame cubeGame) {
 //    var game = this.tryGame(cubeGame.getString());
@@ -166,6 +181,28 @@ public class CubepanionAPI {
 //  public List<ChestLocation> getChestLocations() {
 //    return this.chestLocations;
 //  }
+
+  public CompletableFuture<Void> loadLeaderboardConfiguration() {
+    return this.get(this.baseUrlv2 + "/Leaderboard/config", LeaderboardConfiguration.class)
+        .thenAccept(config -> {
+          if (config == null) {
+            LOGGER.warn("Leaderboard configuration request came back empty, leaderboard submitting stays off");
+            return;
+          }
+
+          this.leaderboardConfiguration = config;
+          LOGGER.info("Loaded leaderboard configuration: enabled={}, {} places over {} pages",
+              config.enabled(), config.playerCount(), config.pageCount());
+        })
+        .exceptionally(ex -> {
+          LOGGER.error("Failed to load leaderboard configuration, leaderboard submitting stays off", ex);
+          return null;
+        });
+  }
+
+  public LeaderboardConfiguration getLeaderboardConfiguration() {
+    return this.leaderboardConfiguration;
+  }
 
   @Nullable
   public Game getGameById(int id) {
@@ -221,36 +258,30 @@ public class CubepanionAPI {
     return this.get(this.baseUrlv2+"/Games", gamesToken);
   }
 
-//  public CompletableFuture<Void> submit(Game game, List<LeaderboardRow> entries) {
-//    var submission = new Submission(SessionTracker.get().uuid().toString(), game.id(), entries);
-//
-//    var player = Laby.labyAPI().minecraft().getClientPlayer();
-//    if (player == null) {
-//      return CompletableFuture.completedFuture(null);
-//    }
-//
-//    CompletableFuture<Void> future = new CompletableFuture<>();
-//
-//    Request.ofString()
-//        .url(this.baseUrlv2+"/Leaderboard")
-//        .method(Method.POST)
-//        .json(submission)
-//        .async()
-//        .execute(c -> {
-//          if (c.hasException()) {
-//            future.completeExceptionally(c.exception());
-//            return;
-//          }
-//
-//          if (c.getStatusCode() != 202) {
-//            future.completeExceptionally(new Exception("Server returned status code " + c.getStatusCode()));
-//          }
-//
-//          future.complete(null);
-//        });
-//
-//    return future;
-//  }
+  public CompletableFuture<Void> submit(Game game, List<LeaderboardRow> entries, String playerUuid) {
+      var submission = new Submission(playerUuid, game.id(), entries);
+      String json = gson.toJson(submission);
+
+      HttpRequest request = HttpRequest.newBuilder()
+              .uri(URI.create(baseUrlv2 + "/Leaderboard"))
+              .header("Content-Type", "application/json")
+              .header("User-Agent", "CubeCraftPlus")
+              .POST(HttpRequest.BodyPublishers.ofString(json))
+              .build();
+
+      return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+              .thenCompose(response -> {
+                  // Submissions are queued, so success is 202 rather than 200
+                  if (response.statusCode() != 202) {
+                      Debug.log("Failed leaderboard submit to {}, {}", request.uri(), response.statusCode());
+                      return CompletableFuture.<Void>failedFuture(
+                              new IllegalArgumentException("CubepanionAPI submit returned non-202: " + response.statusCode())
+                      );
+                  }
+
+                  return CompletableFuture.<Void>completedFuture(null);
+              });
+  }
 
   public CompletableFuture<List<LeaderboardRow
           >> batch(Game game, List<String> players) {

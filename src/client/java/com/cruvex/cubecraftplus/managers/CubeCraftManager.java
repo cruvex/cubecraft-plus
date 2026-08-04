@@ -4,18 +4,27 @@ import com.cruvex.cubecraftplus.events.CubeEvents;
 import com.cruvex.cubecraftplus.events.ScoreboardEvents;
 import com.cruvex.cubecraftplus.model.CubeGame;
 import com.cruvex.cubecraftplus.util.Debug;
+import com.cruvex.cubecraftplus.util.Util;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.PlayerTeam;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+/** Tracks which CubeCraft game the player is in, read off the sidebar. */
 public class CubeCraftManager {
 
     private static CubeCraftManager instance;
 
+    /** Sidebar line CubeCraft puts the server id in, e.g. "05/08/26 (EU12B)". */
+    private static final Pattern SERVER_ID_PATTERN = Pattern.compile("[0-9]{2}/[0-9]{2}/[0-9]{2} \\((.{5})\\)");
+
     private CubeGame currentGame;
+    private String serverId = "";
+    private String lastServerId = "";
 
     public static CubeCraftManager getInstance() {
         if (instance == null) {
@@ -30,6 +39,16 @@ public class CubeCraftManager {
 
     private void registerListeners() {
         ScoreboardEvents.ADD_OBJECTIVE.register(this::onAddObjective);
+        ScoreboardEvents.TEAM_CHANGE.register(this::onTeamChange);
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
+    }
+
+    private void onTeamChange(PlayerTeam team) {
+        Matcher matcher = SERVER_ID_PATTERN.matcher(team.getPlayerPrefix().getString());
+        if (!matcher.matches()) return;
+
+        setServerId(matcher.group(1));
     }
 
     private void onAddObjective(@NotNull Objective objective) {
@@ -56,7 +75,29 @@ public class CubeCraftManager {
     }
 
     public boolean isOnCubeCraft() {
-        ServerData server = Minecraft.getInstance().getCurrentServer();
-        return server != null && server.ip != null && server.ip.toLowerCase(Locale.ROOT).contains("cubecraft");
+        return Util.isOnCubeCraft(Minecraft.getInstance());
+    }
+
+    public String getServerId() {
+        return serverId;
+    }
+
+    public String getLastServerId() {
+        return lastServerId;
+    }
+
+    private void setServerId(String serverId) {
+        if (this.serverId.equals(serverId)) return;
+
+        Debug.log("Server id changed from {} to {}", this.serverId, serverId);
+        this.lastServerId = this.serverId;
+        this.serverId = serverId;
+    }
+
+    private void reset() {
+        // Not via setCurrentGame: leaving isn't a game join
+        currentGame = null;
+        serverId = "";
+        lastServerId = "";
     }
 }

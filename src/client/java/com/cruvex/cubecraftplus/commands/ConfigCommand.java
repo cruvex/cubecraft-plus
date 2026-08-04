@@ -1,6 +1,6 @@
 package com.cruvex.cubecraftplus.commands;
 
-import com.cruvex.cubecraftplus.gui.screen.AutoVoteConfigScreen;
+import com.cruvex.cubecraftplus.gui.screen.ConfigScreen;
 import com.cruvex.cubecraftplus.util.Debug;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -41,7 +41,7 @@ public class ConfigCommand {
     private static int openConfigScreen(Minecraft client) {
         // Commands run while the chat screen is closing — open the screen next tick,
         // and capture the parent then so we don't return to the dead chat screen
-        client.execute(() -> client.setScreen(new AutoVoteConfigScreen(client.screen)));
+        client.execute(() -> client.setScreen(new ConfigScreen(client.screen)));
         return 1;
     }
 }

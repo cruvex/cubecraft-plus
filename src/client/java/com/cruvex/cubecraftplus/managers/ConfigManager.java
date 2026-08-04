@@ -16,10 +16,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Loads and saves the mod config as JSON in the Fabric config directory
- * ({@code config/cubecraft-plus.json}). Loading never fails: a missing, corrupt or
- * outdated file falls back to defaults and is rewritten, so new config fields are
- * added to existing files automatically.
+ * Loads and saves {@code config/cubecraft-plus.json}. A missing or corrupt file falls back
+ * to defaults and is rewritten, so existing files pick up new fields.
  */
 public class ConfigManager {
 

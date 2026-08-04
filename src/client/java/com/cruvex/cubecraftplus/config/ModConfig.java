@@ -1,16 +1,20 @@
 package com.cruvex.cubecraftplus.config;
 
 /**
- * Root config model, serialized to JSON by {@link com.cruvex.cubecraftplus.managers.ConfigManager}.
- * Field initializers are the defaults; Gson only overwrites fields present in the file.
+ * Config model, serialized to JSON. Field initializers are the defaults.
  *
- * Vote option slots differ per menu layout: two-option menus use 12/14, three-option
- * menus 11/13/15, four-option menus 10/12/14/16 and five-option menus 11-15.
- * {@code NONE} skips the category.
+ * Vote slots differ per menu layout: two options use 12/14, three 11/13/15, four
+ * 10/12/14/16, five 11-15. {@code NONE} skips the category.
  */
 public class ModConfig {
 
     public AutoVoteConfig autoVote = new AutoVoteConfig();
+
+    public LeaderboardSubmitConfig leaderboardSubmit = new LeaderboardSubmitConfig();
+
+    public static class LeaderboardSubmitConfig {
+        public boolean enabled = true;
+    }
 
     public static class AutoVoteConfig {
         public boolean enabled = true;
@@ -102,11 +106,10 @@ public class ModConfig {
         }
     }
 
-    /**
-     * Repairs fields Gson left null or out of range (missing keys, unknown enum values),
-     * so the rest of the mod never has to null-check config values.
-     */
+    /** Repairs fields Gson left null, so nothing downstream has to null-check. */
     public void validate() {
+        if (leaderboardSubmit == null) leaderboardSubmit = new LeaderboardSubmitConfig();
+
         if (autoVote == null) autoVote = new AutoVoteConfig();
 
         if (autoVote.eggWars == null) autoVote.eggWars = new EggWars();

@@ -29,16 +29,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Automatically votes in CubeCraft pre-game lobbies for all games with vote
- * definitions in {@link GameVotes}.
+ * Automatically votes in CubeCraft pre-game lobbies for the games defined in {@link GameVotes}.
  *
- * Tick-driven state machine: the server populates voting menus slightly after the
- * screen opens, so instead of clicking from the screen-open callback, every client
- * tick checks whether the expected menu is open and its target slot already holds an
- * item, and only then clicks. States waiting for a menu to open additionally require
- * a container id different from the menu last clicked in, because submenu titles can
- * pass the main-menu title check (e.g. EggWars' "Perk Voting") while the old screen
- * is still open. A per-state timeout aborts a stuck flow.
+ * Tick-driven state machine: menus are populated slightly after the screen opens, so it
+ * clicks only once the target slot holds an item. States waiting for a menu also require a
+ * new container id, because submenu titles can pass the main-menu check (e.g. EggWars'
+ * "Perk Voting") while the old screen is still open.
  */
 public class AutoVoteManager {
 
@@ -46,8 +42,7 @@ public class AutoVoteManager {
 
     private static final String VOTING_ITEM_NAME = "Voting";
     private static final int VOTING_HOTBAR_SLOT = 0;
-    // A voting menu is a large chest plus player inventory; fewer slots means a
-    // different (or not yet initialized) container.
+    // Large chest plus player inventory; fewer slots means a different container
     private static final int MIN_MENU_SLOTS = 70;
     private static final int ARM_DELAY_TICKS = 2;
     private static final int RETURN_DELAY_TICKS = 2;
@@ -73,8 +68,7 @@ public class AutoVoteManager {
     private int delayTicks;
     private int voteIndex;
     private List<VotePair> votes = List.of();
-    // Container id of the menu we last clicked in; a state waiting for a new menu only
-    // accepts a different id, so a stale (not yet replaced) screen can't be re-clicked
+    // Menu we last clicked in, so a stale screen can't be re-clicked
     private int lastContainerId = -1;
     private boolean attemptedThisRound;
     private boolean voteConfirmed;
@@ -158,10 +152,8 @@ public class AutoVoteManager {
     }
 
     /**
-     * Uses the held voting item the same way {@code Minecraft#startUseItem} does for a
-     * manual right click: interact with the targeted block if the crosshair is on one
-     * (the server may only react to that packet), otherwise use the item in the air,
-     * and swing the arm on success.
+     * Uses the held voting item the way {@code Minecraft#startUseItem} does for a manual
+     * right click: the targeted block first, since the server may only react to that packet.
      */
     private void useVotingItem(Minecraft client, LocalPlayer player) {
         player.getInventory().setSelectedSlot(VOTING_HOTBAR_SLOT);
@@ -179,10 +171,7 @@ public class AutoVoteManager {
         }
     }
 
-    /**
-     * The first use can be ignored (e.g. while still spawning in) — use the voting item
-     * again every second as long as no menu opened and the item is still there.
-     */
+    /** The first use can be ignored (e.g. while still spawning in), so retry every second. */
     private boolean retryUseIfNoMenu(Minecraft client, LocalPlayer player) {
         if (client.screen != null) return false;
         if (stateTicks % USE_RETRY_TICKS != 0) return false;
@@ -209,8 +198,7 @@ public class AutoVoteManager {
 
     private void tickOpeningSub(Minecraft client, LocalPlayer player) {
         VotePair vote = votes.get(voteIndex);
-        // For games without a category menu this is the entry state — the menu comes
-        // straight from the voting item, so the use may need retrying here too
+        // Entry state for games without a category menu, so the use may need retrying here too
         if (!vote.hasSubmenu() && retryUseIfNoMenu(client, player)) return;
 
         ChestMenu menu = openMenu(client, title -> title.contains(vote.submenuTitle().toLowerCase(Locale.ROOT)), true);

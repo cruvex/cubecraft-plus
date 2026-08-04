@@ -2,8 +2,8 @@ package com.cruvex.cubecraftplus.events;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.PlayerTeam;
 import org.jetbrains.annotations.Nullable;
 
 public interface ScoreboardEvents {
@@ -15,8 +15,21 @@ public interface ScoreboardEvents {
                 }
             });
 
+    Event<TeamChange> TEAM_CHANGE = EventFactory.createArrayBacked(
+            TeamChange.class,
+            callbacks -> team -> {
+                for (TeamChange callback : callbacks) {
+                    callback.onTeamChange(team);
+                }
+            });
+
     @FunctionalInterface
     interface AddObjective {
         void onAddObjective(@Nullable Objective objective);
+    }
+
+    @FunctionalInterface
+    interface TeamChange {
+        void onTeamChange(PlayerTeam team);
     }
 }

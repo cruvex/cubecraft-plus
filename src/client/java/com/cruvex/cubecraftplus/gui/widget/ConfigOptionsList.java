@@ -14,10 +14,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * Scrollable options list modeled on vanilla's OptionsList (the Video Settings layout):
- * rows of one or two 150-wide widgets centered in a 310-wide column, plus section
- * header rows. Vanilla's OptionsList itself is hard-wired to OptionsSubScreen and
- * OptionInstances, so this is a small standalone clone for plain widgets.
+ * Scrollable options list laid out like vanilla's OptionsList, which can't be reused here
+ * because it is hard-wired to OptionsSubScreen and OptionInstances.
  */
 public class ConfigOptionsList extends ContainerObjectSelectionList<ConfigOptionsList.AbstractEntry> {
 

@@ -1,10 +1,14 @@
 package com.cruvex.cubecraftplus;
 
 import com.cruvex.cubecraftplus.commands.CommandManager;
+import com.cruvex.cubecraftplus.cubesocket.CubeSocket;
+import com.cruvex.cubecraftplus.events.CubeEvents;
+import com.cruvex.cubecraftplus.events.ServerEventHandler;
 import com.cruvex.cubecraftplus.external.CubepanionAPI;
 import com.cruvex.cubecraftplus.managers.AutoVoteManager;
 import com.cruvex.cubecraftplus.managers.ConfigManager;
 import com.cruvex.cubecraftplus.managers.CubeCraftManager;
+import com.cruvex.cubecraftplus.managers.LeaderboardSubmitManager;
 import net.fabricmc.api.ClientModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,16 +25,15 @@ public class CubeCraftPlusClient implements ClientModInitializer {
 		LOGGER.debug("{} DEBUG", MOD_ID);
 
 		ConfigManager.getInstance().init();
-		// TODO: only load on CubeCraft join
-		CubepanionAPI.getInstance().loadInitialData();
 
-		// TODO: only load on CubeCraft join ?
+		ServerEventHandler.register();
+		CubeEvents.CUBE_JOIN.register(() -> CubepanionAPI.getInstance().loadInitialData());
+
 		CommandManager.register();
 
-		// TODO: only load on CubeCraft join
 		CubeCraftManager.getInstance().init();
-
-		// TODO: only load on CubeCraft join
 		AutoVoteManager.getInstance().init();
+		LeaderboardSubmitManager.getInstance().init();
+		CubeSocket.getInstance().init();
 	}
 }

@@ -7,10 +7,8 @@ import net.minecraft.network.chat.Component;
 import org.slf4j.helpers.MessageFormatter;
 
 /**
- * Debug mode, toggled in-game with /ccp debug. {@link #log} always writes to the
- * regular logger at debug level and additionally mirrors the message to the in-game
- * chat while debug mode is enabled. Accepts slf4j-style {@code {}} placeholders so
- * existing LOGGER.debug call sites can switch to it unchanged.
+ * Debug mode, toggled in-game with /ccp debug. {@link #log} writes to the logger at debug
+ * level and mirrors to chat while enabled. Takes slf4j-style {@code {}} placeholders.
  */
 public class Debug {
 
