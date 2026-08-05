@@ -16,7 +16,7 @@ public class CubeSocketNotifications {
   private void toast(String message) {
     Minecraft client = Minecraft.getInstance();
     client.execute(() -> SystemToast.add(
-        client.gui.toastManager(),
+        client.getToastManager(),
         SystemToast.SystemToastId.NARRATOR_TOGGLE,
         Component.literal("CubeSocket"),
         Component.literal(message)

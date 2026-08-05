@@ -8,8 +8,6 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.tabs.Tab;
-import net.minecraft.client.gui.layouts.GridLayout;
-import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.network.chat.Component;
 
@@ -29,7 +27,6 @@ public abstract class ConfigTab implements Tab {
 
     protected final ConfigScreen screen;
     protected final ConfigOptionsList list;
-    private final Layout layout = new GridLayout();
 
     protected ConfigTab(ConfigScreen screen) {
         this.screen = screen;
@@ -73,15 +70,6 @@ public abstract class ConfigTab implements Tab {
     @Override
     public Component getTabExtraNarration() {
         return Component.empty();
-    }
-
-    /**
-     * The tab content is a scrolling list rather than a laid-out grid, so there is nothing
-     * for the tab bar to arrange.
-     */
-    @Override
-    public Layout getLayout() {
-        return layout;
     }
 
     @Override

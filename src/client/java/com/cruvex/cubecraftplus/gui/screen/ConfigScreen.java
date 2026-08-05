@@ -7,8 +7,8 @@ import com.cruvex.cubecraftplus.gui.widget.DropdownWidget;
 import com.cruvex.cubecraftplus.managers.ConfigManager;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.tabs.MenuTabBar;
 import net.minecraft.client.gui.components.tabs.TabManager;
+import net.minecraft.client.gui.components.tabs.TabNavigationBar;
 import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
 import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
@@ -30,7 +30,7 @@ public class ConfigScreen extends Screen {
     private final List<DropdownWidget<?>> dropdowns = new ArrayList<>();
     private final HeaderAndFooterLayout layout = new HeaderAndFooterLayout(this);
     private final TabManager tabManager = new TabManager(widget -> addRenderableWidget(widget), widget -> removeWidget(widget));
-    private MenuTabBar tabNavigationBar;
+    private TabNavigationBar tabNavigationBar;
 
     public ConfigScreen(Screen parent) {
         super(Component.translatable("cubecraftplus.config.title"));
@@ -41,7 +41,7 @@ public class ConfigScreen extends Screen {
     @Override
     protected void init() {
         dropdowns.clear();
-        this.tabNavigationBar = MenuTabBar.builder(tabManager, this.width)
+        this.tabNavigationBar = TabNavigationBar.builder(tabManager, this.width)
                 .addTabs(
                         new AutoVoteTab(this, draft.autoVote),
                         new LeaderboardTab(this, draft.leaderboardSubmit))
@@ -60,7 +60,8 @@ public class ConfigScreen extends Screen {
     @Override
     protected void repositionElements() {
         if (tabNavigationBar == null) return;
-        tabNavigationBar.arrangeElements(this.width);
+        tabNavigationBar.updateWidth(this.width);
+        tabNavigationBar.arrangeElements();
         int tabAreaTop = tabNavigationBar.getRectangle().bottom();
         tabManager.setTabArea(new ScreenRectangle(0, tabAreaTop, this.width, this.height - layout.getFooterHeight() - tabAreaTop));
         layout.setHeaderHeight(tabAreaTop);
@@ -78,7 +79,7 @@ public class ConfigScreen extends Screen {
 
     private void saveAndClose() {
         ConfigManager.getInstance().update(draft);
-        this.minecraft.gui.setScreen(parent);
+        this.minecraft.setScreen(parent);
     }
 
     @Override
@@ -116,6 +117,6 @@ public class ConfigScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.gui.setScreen(parent);
+        this.minecraft.setScreen(parent);
     }
 }

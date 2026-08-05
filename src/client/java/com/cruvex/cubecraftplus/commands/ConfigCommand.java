@@ -41,7 +41,7 @@ public class ConfigCommand {
     private static int openConfigScreen(Minecraft client) {
         // Commands run while the chat screen is closing — open the screen next tick,
         // and capture the parent then so we don't return to the dead chat screen
-        client.execute(() -> client.gui.setScreen(new ConfigScreen(client.gui.screen())));
+        client.execute(() -> client.setScreen(new ConfigScreen(client.screen)));
         return 1;
     }
 }

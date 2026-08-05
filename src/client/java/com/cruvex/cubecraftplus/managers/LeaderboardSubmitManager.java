@@ -78,7 +78,7 @@ public class LeaderboardSubmitManager {
         if (!CubepanionAPI.getInstance().getLeaderboardConfiguration().canSubmit()) return;
 
         // Forget the menu once it closes, so a reused container id isn't taken for a parsed one
-        if (!(client.gui.screen() instanceof ContainerScreen screen)) {
+        if (!(client.screen instanceof ContainerScreen screen)) {
             menuContainerId = -1;
             return;
         }
