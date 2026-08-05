@@ -5,10 +5,10 @@ import com.cruvex.cubecraftplus.gui.tab.AutoVoteTab;
 import com.cruvex.cubecraftplus.gui.tab.LeaderboardTab;
 import com.cruvex.cubecraftplus.gui.widget.DropdownWidget;
 import com.cruvex.cubecraftplus.managers.ConfigManager;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.tabs.MenuTabBar;
 import net.minecraft.client.gui.components.tabs.TabManager;
-import net.minecraft.client.gui.components.tabs.TabNavigationBar;
 import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
 import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
@@ -30,7 +30,7 @@ public class ConfigScreen extends Screen {
     private final List<DropdownWidget<?>> dropdowns = new ArrayList<>();
     private final HeaderAndFooterLayout layout = new HeaderAndFooterLayout(this);
     private final TabManager tabManager = new TabManager(widget -> addRenderableWidget(widget), widget -> removeWidget(widget));
-    private TabNavigationBar tabNavigationBar;
+    private MenuTabBar tabNavigationBar;
 
     public ConfigScreen(Screen parent) {
         super(Component.translatable("cubecraftplus.config.title"));
@@ -41,7 +41,7 @@ public class ConfigScreen extends Screen {
     @Override
     protected void init() {
         dropdowns.clear();
-        this.tabNavigationBar = TabNavigationBar.builder(tabManager, this.width)
+        this.tabNavigationBar = MenuTabBar.builder(tabManager, this.width)
                 .addTabs(
                         new AutoVoteTab(this, draft.autoVote),
                         new LeaderboardTab(this, draft.leaderboardSubmit))
@@ -60,8 +60,7 @@ public class ConfigScreen extends Screen {
     @Override
     protected void repositionElements() {
         if (tabNavigationBar == null) return;
-        tabNavigationBar.setWidth(this.width);
-        tabNavigationBar.arrangeElements();
+        tabNavigationBar.arrangeElements(this.width);
         int tabAreaTop = tabNavigationBar.getRectangle().bottom();
         tabManager.setTabArea(new ScreenRectangle(0, tabAreaTop, this.width, this.height - layout.getFooterHeight() - tabAreaTop));
         layout.setHeaderHeight(tabAreaTop);
@@ -79,7 +78,7 @@ public class ConfigScreen extends Screen {
 
     private void saveAndClose() {
         ConfigManager.getInstance().update(draft);
-        this.minecraft.setScreen(parent);
+        this.minecraft.gui.setScreen(parent);
     }
 
     @Override
@@ -102,16 +101,21 @@ public class ConfigScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        super.render(graphics, mouseX, mouseY, delta);
-        // Second pass so open dropdown lists draw on top of everything else
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
+
+        if (dropdowns.stream().noneMatch(DropdownWidget::isOpen)) return;
+
+        // A later stratum draws over everything extracted so far, which is what an open
+        // dropdown list needs — it overhangs the rows and widgets beneath it
+        graphics.nextStratum();
         for (DropdownWidget<?> dropdown : dropdowns) {
-            dropdown.renderPopup(graphics, mouseX, mouseY);
+            dropdown.extractPopup(graphics, mouseX, mouseY);
         }
     }
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        this.minecraft.gui.setScreen(parent);
     }
 }

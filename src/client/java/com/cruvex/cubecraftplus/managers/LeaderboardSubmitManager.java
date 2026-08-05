@@ -78,7 +78,7 @@ public class LeaderboardSubmitManager {
         if (!CubepanionAPI.getInstance().getLeaderboardConfiguration().canSubmit()) return;
 
         // Forget the menu once it closes, so a reused container id isn't taken for a parsed one
-        if (!(client.screen instanceof ContainerScreen screen)) {
+        if (!(client.gui.screen() instanceof ContainerScreen screen)) {
             menuContainerId = -1;
             return;
         }
@@ -211,12 +211,11 @@ public class LeaderboardSubmitManager {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) return;
 
-        player.displayClientMessage(
+        player.sendSystemMessage(
                 Component.literal("Submitted " + places + " ")
                         .append(Component.literal(game.displayName()).withStyle(ChatFormatting.AQUA))
                         .append(Component.literal(" leaderboard places to Cubepanion."))
-                        .withStyle(ChatFormatting.GREEN),
-                false);
+                        .withStyle(ChatFormatting.GREEN));
     }
 
     /** The chest part of the menu only — heads in the inventory below aren't places. */

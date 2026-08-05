@@ -2,7 +2,7 @@ package com.cruvex.cubecraftplus.gui.widget;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.InputWithModifiers;
@@ -101,23 +101,24 @@ public class DropdownWidget<T> extends AbstractButton {
     }
 
     @Override
-    protected void renderContents(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // Same as vanilla Button$Plain: button sprite plus centered scrolling label
-        renderDefaultSprite(graphics);
-        renderDefaultLabel(graphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
+        extractDefaultSprite(graphics);
+        extractDefaultLabel(graphics.textRendererForWidget(this, GuiGraphicsExtractor.HoveredTextEffects.NONE));
     }
 
-    /** Called by the screen after all widgets have rendered, so the list draws on top. */
-    public void renderPopup(GuiGraphics graphics, int mouseX, int mouseY) {
+    /** Called by the screen in a later stratum, so the list draws on top. */
+    public void extractPopup(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         if (!open) return;
 
         int x = getX();
         int y = popupY();
         int width = getWidth();
+        int height = popupHeight();
         int hovered = entryIndexAt(mouseX, mouseY);
 
-        graphics.fill(x, y, x + width, y + popupHeight(), 0xF0100010);
-        graphics.renderOutline(x, y, width, popupHeight(), 0xFF8A8A8A);
+        graphics.fill(x, y, x + width, y + height, 0xF0100010);
+        outline(graphics, x, y, width, height, 0xFF8A8A8A);
 
         for (int i = 0; i < values.size(); i++) {
             int entryY = y + 1 + i * ENTRY_HEIGHT;
@@ -125,8 +126,16 @@ public class DropdownWidget<T> extends AbstractButton {
                 graphics.fill(x + 1, entryY, x + width - 1, entryY + ENTRY_HEIGHT, 0x50FFFFFF);
             }
             int color = values.get(i).equals(value) ? 0xFFFFFF55 : 0xFFFFFFFF;
-            graphics.drawString(font, labelGetter.apply(values.get(i)), x + 5, entryY + 3, color);
+            graphics.text(font, labelGetter.apply(values.get(i)), x + 5, entryY + 3, color);
         }
+    }
+
+    /** GuiGraphicsExtractor has no outline helper, so draw the four edges. */
+    private static void outline(GuiGraphicsExtractor graphics, int x, int y, int width, int height, int color) {
+        graphics.fill(x, y, x + width, y + 1, color);
+        graphics.fill(x, y + height - 1, x + width, y + height, color);
+        graphics.fill(x, y + 1, x + 1, y + height - 1, color);
+        graphics.fill(x + width - 1, y + 1, x + width, y + height - 1, color);
     }
 
     @Override

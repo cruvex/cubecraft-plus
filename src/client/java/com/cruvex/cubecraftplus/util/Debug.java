@@ -37,6 +37,10 @@ public class Debug {
 
         // Callers may be off-thread (HTTP futures) or mid-tick — always hop to the client thread
         Minecraft client = Minecraft.getInstance();
-        client.execute(() -> client.gui.getChat().addMessage(chatMessage));
+        client.execute(() -> {
+            if (client.player != null) {
+                client.player.sendSystemMessage(chatMessage);
+            }
+        });
     }
 }

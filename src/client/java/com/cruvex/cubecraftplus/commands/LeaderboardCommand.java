@@ -16,7 +16,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -49,20 +49,20 @@ public class LeaderboardCommand {
     }
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> buildCommand(String name) {
-        return ClientCommandManager.literal(name)
-                .then(ClientCommandManager.literal("player")
-                        .then(ClientCommandManager.argument("name", StringArgumentType.string())
+        return ClientCommands.literal(name)
+                .then(ClientCommands.literal("player")
+                        .then(ClientCommands.argument("name", StringArgumentType.string())
                                 .suggests(LeaderboardCommand::suggestPlayerNames)
                                 .executes(LeaderboardCommand::executePlayer)))
-                .then(ClientCommandManager.literal("players")
+                .then(ClientCommands.literal("players")
                         .executes(LeaderboardCommand::executePlayers))
-                .then(ClientCommandManager.literal("game")
-                        .then(ClientCommandManager.argument("game", StringArgumentType.string())
+                .then(ClientCommands.literal("game")
+                        .then(ClientCommands.argument("game", StringArgumentType.string())
                                 .suggests(LeaderboardCommand::suggestGameNames)
                                 .executes(ctx -> executeGame(ctx, 1))
-                                .then(ClientCommandManager.argument("start", IntegerArgumentType.integer(1, 200))
+                                .then(ClientCommands.argument("start", IntegerArgumentType.integer(1, 200))
                                         .executes(ctx -> executeGame(ctx, IntegerArgumentType.getInteger(ctx, "start"))))))
-                .then(ClientCommandManager.literal("help")
+                .then(ClientCommands.literal("help")
                         .executes(LeaderboardCommand::executeHelp));
     }
 

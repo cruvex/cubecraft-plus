@@ -1,7 +1,7 @@
 package com.cruvex.cubecraftplus.gui.widget;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.StringWidget;
@@ -66,11 +66,11 @@ public class ConfigOptionsList extends ContainerObjectSelectionList<ConfigOption
         }
 
         @Override
-        public void renderContent(GuiGraphics graphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
+        public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
             int x = this.screen.width / 2 - ROW_WIDTH / 2;
             for (AbstractWidget widget : this.widgets) {
                 widget.setPosition(x, this.getContentY());
-                widget.render(graphics, mouseX, mouseY, partialTick);
+                widget.extractRenderState(graphics, mouseX, mouseY, partialTick);
                 x += WIDGET_X_OFFSET;
             }
         }
@@ -98,9 +98,9 @@ public class ConfigOptionsList extends ContainerObjectSelectionList<ConfigOption
         }
 
         @Override
-        public void renderContent(GuiGraphics graphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
+        public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
             this.widget.setPosition(this.screen.width / 2 - ROW_WIDTH / 2, this.getContentY() + this.paddingTop);
-            this.widget.render(graphics, mouseX, mouseY, partialTick);
+            this.widget.extractRenderState(graphics, mouseX, mouseY, partialTick);
         }
 
         @Override

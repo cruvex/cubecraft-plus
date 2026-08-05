@@ -15,13 +15,11 @@ public class CubeSocketNotifications {
 
   private void toast(String message) {
     Minecraft client = Minecraft.getInstance();
-    client.execute(() -> client.getToastManager().addToast(
-        SystemToast.multiline(
-            client,
-            SystemToast.SystemToastId.NARRATOR_TOGGLE,
-            Component.literal("CubeSocket"),
-            Component.literal(message)
-        )
+    client.execute(() -> SystemToast.add(
+        client.gui.toastManager(),
+        SystemToast.SystemToastId.NARRATOR_TOGGLE,
+        Component.literal("CubeSocket"),
+        Component.literal(message)
     ));
   }
 }

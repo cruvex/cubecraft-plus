@@ -4,7 +4,7 @@ import com.cruvex.cubecraftplus.gui.screen.ConfigScreen;
 import com.cruvex.cubecraftplus.util.Debug;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -18,15 +18,15 @@ public class ConfigCommand {
     }
 
     public static LiteralArgumentBuilder<FabricClientCommandSource> buildCommand(String name) {
-        return ClientCommandManager.literal(name)
+        return ClientCommands.literal(name)
                 .executes(ctx -> openConfigScreen(ctx.getSource().getClient()))
-                .then(ClientCommandManager.literal("config")
+                .then(ClientCommands.literal("config")
                         .executes(ctx -> openConfigScreen(ctx.getSource().getClient())))
-                .then(ClientCommandManager.literal("debug")
+                .then(ClientCommands.literal("debug")
                         .executes(ctx -> setDebug(ctx.getSource(), !Debug.isEnabled()))
-                        .then(ClientCommandManager.literal("on")
+                        .then(ClientCommands.literal("on")
                                 .executes(ctx -> setDebug(ctx.getSource(), true)))
-                        .then(ClientCommandManager.literal("off")
+                        .then(ClientCommands.literal("off")
                                 .executes(ctx -> setDebug(ctx.getSource(), false))));
     }
 
@@ -41,7 +41,7 @@ public class ConfigCommand {
     private static int openConfigScreen(Minecraft client) {
         // Commands run while the chat screen is closing — open the screen next tick,
         // and capture the parent then so we don't return to the dead chat screen
-        client.execute(() -> client.setScreen(new ConfigScreen(client.screen)));
+        client.execute(() -> client.gui.setScreen(new ConfigScreen(client.gui.screen())));
         return 1;
     }
 }

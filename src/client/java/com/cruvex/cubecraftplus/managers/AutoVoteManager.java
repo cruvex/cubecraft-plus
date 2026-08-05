@@ -17,7 +17,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.inventory.ChestMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -123,7 +123,7 @@ public class AutoVoteManager {
         }
 
         if (attemptedThisRound || voteConfirmed) return;
-        if (client.screen != null) return;
+        if (client.gui.screen() != null) return;
 
         ModConfig.AutoVoteConfig config = ConfigManager.getInstance().getConfig().autoVote;
         if (!config.enabled) return;
@@ -138,7 +138,7 @@ public class AutoVoteManager {
     }
 
     private void tickArmed(Minecraft client, LocalPlayer player) {
-        if (client.screen != null || !isVotingItem(player.getInventory().getItem(VOTING_HOTBAR_SLOT))) {
+        if (client.gui.screen() != null || !isVotingItem(player.getInventory().getItem(VOTING_HOTBAR_SLOT))) {
             setState(State.IDLE);
             return;
         }
@@ -173,7 +173,7 @@ public class AutoVoteManager {
 
     /** The first use can be ignored (e.g. while still spawning in), so retry every second. */
     private boolean retryUseIfNoMenu(Minecraft client, LocalPlayer player) {
-        if (client.screen != null) return false;
+        if (client.gui.screen() != null) return false;
         if (stateTicks % USE_RETRY_TICKS != 0) return false;
         if (!isVotingItem(player.getInventory().getItem(VOTING_HOTBAR_SLOT))) return false;
 
@@ -259,7 +259,7 @@ public class AutoVoteManager {
     }
 
     private ChestMenu openMenu(Minecraft client, Predicate<String> titleMatcher, boolean requireNewContainer) {
-        if (!(client.screen instanceof ContainerScreen screen)) return null;
+        if (!(client.gui.screen() instanceof ContainerScreen screen)) return null;
         ChestMenu menu = screen.getMenu();
         if (requireNewContainer && menu.containerId == lastContainerId) return null;
         String title = screen.getTitle().getString().toLowerCase(Locale.ROOT);
@@ -272,7 +272,7 @@ public class AutoVoteManager {
     }
 
     private void clickSlot(Minecraft client, LocalPlayer player, ChestMenu menu, int slot) {
-        client.gameMode.handleInventoryMouseClick(menu.containerId, slot, 0, ClickType.PICKUP, player);
+        client.gameMode.handleContainerInput(menu.containerId, slot, 0, ContainerInput.PICKUP, player);
     }
 
     private boolean isVotingItem(ItemStack stack) {
