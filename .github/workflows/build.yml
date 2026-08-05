@@ -5,9 +5,13 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Release tag (e.g. v1.0.0)'
+      version:
+        description: 'Mod version (e.g. 1.2.0)'
         required: true
+      latest:
+        description: 'Mark this release as the latest'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -31,13 +35,19 @@ jobs:
       - name: Make gradle wrapper executable
         run: chmod +x ./gradlew
 
-      # On release dispatches, override mod_version with the tag (minus the "v" prefix)
-      # so the jar name and fabric.mod.json version match the release.
-      - name: Set release version
+      # The branch decides which Minecraft version this is, never whoever dispatched
+      # the run. Jars are named <mod version>+<minecraft version> so every branch can
+      # upload into the same release without colliding.
+      - name: Resolve release version
         if: github.event_name == 'workflow_dispatch'
         run: |
-          TAG="${{ github.event.inputs.tag }}"
-          echo "GRADLE_VERSION_ARG=-Pmod_version=${TAG#v}" >> "$GITHUB_ENV"
+          MC=$(grep -m1 '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          if [ -z "$MC" ]; then
+            echo "No minecraft_version in gradle.properties" >&2
+            exit 1
+          fi
+          echo "Releasing ${{ inputs.version }} for Minecraft $MC"
+          echo "GRADLE_VERSION_ARG=-Pmod_version=${{ inputs.version }}+$MC" >> "$GITHUB_ENV"
 
       - name: Build
         run: ./gradlew build $GRADLE_VERSION_ARG
@@ -48,9 +58,13 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: rm -f build/libs/*-sources.jar
 
+      # One release per mod version, holding a jar per supported Minecraft version.
+      # The first branch to release creates it, the rest add their jar to it.
       - name: Upload to GitHub Release
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag }}
+          tag_name: v${{ inputs.version }}
+          name: ${{ inputs.version }}
+          make_latest: ${{ inputs.latest }}
           files: build/libs/*.jar
