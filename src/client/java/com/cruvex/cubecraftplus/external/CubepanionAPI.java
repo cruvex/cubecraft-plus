@@ -269,13 +269,18 @@ public class CubepanionAPI {
               .POST(HttpRequest.BodyPublishers.ofString(json))
               .build();
 
+      Debug.log("Leaderboard submit to {}: {} ({}), {} places as {}",
+              request.uri(), game.name(), game.id(), entries.size(), playerUuid);
+      LOGGER.debug("Leaderboard submit body: {}", json);
+
       return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
               .thenCompose(response -> {
                   // Submissions are queued, so success is 202 rather than 200
                   if (response.statusCode() != 202) {
-                      Debug.log("Failed leaderboard submit to {}, {}", request.uri(), response.statusCode());
+                      String body = response.body() == null ? "" : response.body();
+                      Debug.log("Failed leaderboard submit to {}, {}: {}", request.uri(), response.statusCode(), body);
                       return CompletableFuture.<Void>failedFuture(
-                              new IllegalArgumentException("CubepanionAPI submit returned non-202: " + response.statusCode())
+                              new IllegalArgumentException("CubepanionAPI submit returned non-202: " + response.statusCode() + ", body: " + body)
                       );
                   }
 
