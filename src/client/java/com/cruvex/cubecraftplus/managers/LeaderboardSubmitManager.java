@@ -183,7 +183,7 @@ public class LeaderboardSubmitManager {
             return null;
         }
 
-        return new LeaderboardRow(0, player, position, score, texture(head));
+        return new LeaderboardRow(game.id(), player, position, score, texture(head));
     }
 
     private void submit() {
