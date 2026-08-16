@@ -14,8 +14,8 @@ import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Base for {@link ConfigScreen} tabs: holds the options list and the widget builders, so a
@@ -49,25 +49,12 @@ public abstract class ConfigTab implements Tab {
                         (button, value) -> setter.accept(value));
     }
 
-    protected <T extends Enum<T>> DropdownWidget<T> dropdown(String key, T[] values, T initial, Consumer<T> setter) {
+    protected <T> DropdownWidget<T> dropdown(Component name, List<T> values, T initial,
+                                             Function<T, Component> labelGetter, Consumer<T> setter) {
         DropdownWidget<T> dropdown = new DropdownWidget<>(screen.getFont(), BUTTON_WIDTH, BUTTON_HEIGHT,
-                Component.translatable(key),
-                List.of(values), initial,
-                value -> Component.translatable(key + "." + entryKey(value)),
-                setter,
-                screen::closeAllDropdowns);
+                name, values, initial, labelGetter, setter, screen::closeAllDropdowns);
         screen.addDropdown(dropdown);
         return dropdown;
-    }
-
-    /** LEFT -> "left", MIDDLE_LEFT -> "middleLeft", matching the lang file entry keys. */
-    private static String entryKey(Enum<?> value) {
-        String[] parts = value.name().toLowerCase(Locale.ROOT).split("_");
-        StringBuilder key = new StringBuilder(parts[0]);
-        for (int i = 1; i < parts.length; i++) {
-            key.append(Character.toUpperCase(parts[i].charAt(0))).append(parts[i].substring(1));
-        }
-        return key.toString();
     }
 
     @Override
