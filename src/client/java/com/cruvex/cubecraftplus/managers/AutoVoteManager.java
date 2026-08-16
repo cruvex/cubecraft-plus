@@ -2,6 +2,7 @@ package com.cruvex.cubecraftplus.managers;
 
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.events.CubeEvents;
+import com.cruvex.cubecraftplus.model.CubeGame;
 import com.cruvex.cubecraftplus.model.GameVotes;
 import com.cruvex.cubecraftplus.model.GameVotes.VotePair;
 import com.cruvex.cubecraftplus.util.Debug;
@@ -41,7 +42,6 @@ public class AutoVoteManager {
     private static AutoVoteManager instance;
 
     private static final String VOTING_ITEM_NAME = "Voting";
-    private static final int VOTING_HOTBAR_SLOT = 0;
     // Large chest plus player inventory; fewer slots means a different container
     private static final int MIN_MENU_SLOTS = 70;
     private static final int ARM_DELAY_TICKS = 2;
@@ -68,6 +68,7 @@ public class AutoVoteManager {
     private int delayTicks;
     private int voteIndex;
     private List<VotePair> votes = List.of();
+    private int votingHotbarSlot = -1;
     // Menu we last clicked in, so a stale screen can't be re-clicked
     private int lastContainerId = -1;
     private boolean attemptedThisRound;
@@ -112,7 +113,11 @@ public class AutoVoteManager {
     }
 
     private void tickIdle(Minecraft client, LocalPlayer player) {
-        boolean hasVotingItem = isVotingItem(player.getInventory().getItem(VOTING_HOTBAR_SLOT));
+        CubeGame game = CubeCraftManager.getInstance().getCurrentGame();
+        // Which slot holds the voting item is per-game, so resolve it before checking the item
+        int hotbarSlot = GameVotes.hotbarSlotFor(game);
+        boolean hasVotingItem = hotbarSlot >= 0
+                && isVotingItem(player.getInventory().getItem(hotbarSlot));
 
         if (!hasVotingItem) {
             // The voting item disappearing means the round started or we left the lobby
@@ -127,18 +132,19 @@ public class AutoVoteManager {
 
         ModConfig.AutoVoteConfig config = ConfigManager.getInstance().getConfig().autoVote;
         if (!config.enabled) return;
-        votes = GameVotes.forGame(CubeCraftManager.getInstance().getCurrentGame(), config);
-        if (votes.isEmpty()) return; // no votable game, or every category set to NONE
+        votes = GameVotes.forGame(game, config);
+        if (votes.isEmpty()) return; // every category set to "don't vote"
 
-        Debug.log("AutoVote: voting item detected for {}, arming", CubeCraftManager.getInstance().getCurrentGame());
+        Debug.log("AutoVote: voting item detected for {}, arming", game);
+        votingHotbarSlot = hotbarSlot;
         // Select the slot now so the carried-item sync reaches the server before the use packet
-        player.getInventory().setSelectedSlot(VOTING_HOTBAR_SLOT);
+        player.getInventory().setSelectedSlot(hotbarSlot);
         delayTicks = ARM_DELAY_TICKS;
         setState(State.ARMED);
     }
 
     private void tickArmed(Minecraft client, LocalPlayer player) {
-        if (client.screen != null || !isVotingItem(player.getInventory().getItem(VOTING_HOTBAR_SLOT))) {
+        if (client.screen != null || !isVotingItem(player.getInventory().getItem(votingHotbarSlot))) {
             setState(State.IDLE);
             return;
         }
@@ -156,7 +162,7 @@ public class AutoVoteManager {
      * right click: the targeted block first, since the server may only react to that packet.
      */
     private void useVotingItem(Minecraft client, LocalPlayer player) {
-        player.getInventory().setSelectedSlot(VOTING_HOTBAR_SLOT);
+        player.getInventory().setSelectedSlot(votingHotbarSlot);
         lastContainerId = player.containerMenu.containerId;
 
         InteractionResult result = InteractionResult.PASS;
@@ -175,7 +181,7 @@ public class AutoVoteManager {
     private boolean retryUseIfNoMenu(Minecraft client, LocalPlayer player) {
         if (client.screen != null) return false;
         if (stateTicks % USE_RETRY_TICKS != 0) return false;
-        if (!isVotingItem(player.getInventory().getItem(VOTING_HOTBAR_SLOT))) return false;
+        if (!isVotingItem(player.getInventory().getItem(votingHotbarSlot))) return false;
 
         Debug.log("AutoVote: no menu after {} ticks, using voting item again", stateTicks);
         useVotingItem(client, player);
@@ -290,6 +296,7 @@ public class AutoVoteManager {
         delayTicks = 0;
         voteIndex = 0;
         votes = List.of();
+        votingHotbarSlot = -1;
         lastContainerId = -1;
         attemptedThisRound = false;
         voteConfirmed = false;
