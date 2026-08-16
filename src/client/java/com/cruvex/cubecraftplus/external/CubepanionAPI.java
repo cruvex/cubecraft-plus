@@ -1,6 +1,10 @@
 package com.cruvex.cubecraftplus.external;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
+import com.cruvex.cubecraftplus.managers.CacheManager;
+import com.cruvex.cubecraftplus.model.AutoVoteCategory;
+import com.cruvex.cubecraftplus.model.AutoVoteCategoryOption;
+import com.cruvex.cubecraftplus.model.AutoVoteConfiguration;
 import com.cruvex.cubecraftplus.model.BatchRequest;
 import com.cruvex.cubecraftplus.model.Game;
 import com.cruvex.cubecraftplus.model.Leaderboard;
@@ -10,17 +14,25 @@ import com.cruvex.cubecraftplus.model.PlayerLeaderboard;
 import com.cruvex.cubecraftplus.model.Submission;
 import com.cruvex.cubecraftplus.util.Debug;
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
+import net.fabricmc.loader.api.FabricLoader;
 
+import java.io.IOException;
+import java.io.Reader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -30,6 +42,7 @@ public class CubepanionAPI {
 
     private final TypeToken<List<Game>> gamesToken = new TypeToken<>() {};
     private final TypeToken<List<LeaderboardRow>> lbRowsToken = new TypeToken<>() {};
+    private final TypeToken<List<AutoVoteConfiguration>> autoVoteConfigToken = new TypeToken<>() {};
 //  private final TypeToken<List<ChestLocation>> chestLocationToken = new TypeToken<>() {};
 //  private final TypeToken<List<GameMap>> gameMapsToken = new TypeToken<>() {};
 
@@ -38,9 +51,15 @@ public class CubepanionAPI {
     private final String baseUrlv2 = System.getenv("DEV") == null ?
       "https://cubepanion.ameliah.art/api/v2" : "http://192.168.0.193:5050/api/v2";
 
+    // Served from the repo rather than the API, so adding a game only takes a commit there
+    private static final String AUTO_VOTE_CONFIG_URL =
+            "https://raw.githubusercontent.com/Fesaa/Cubepanion/refs/heads/main/config/auto_vote.json";
+    private static final String BUNDLED_AUTO_VOTE_CONFIG = "assets/cubecraft-plus/auto_vote.json";
+
     // Swapped rather than mutated on reload: the client thread reads these while an HTTP thread writes
     private volatile Map<String, Game> games = Map.of();
     private volatile Map<Integer, Game> gameById = Map.of();
+    private volatile List<AutoVoteConfiguration> autoVoteConfigurations = List.of();
     private volatile LeaderboardConfiguration leaderboardConfiguration = LeaderboardConfiguration.DISABLED;
 //  private final List<ChestLocation> chestLocations = new ArrayList<>();
 //  private final HashMap<Integer, HashMap<String, AbstractGameMap>> convertedGameMaps = new HashMap<>();
@@ -59,12 +78,37 @@ public class CubepanionAPI {
         return instance;
     }
 
+  /**
+   * Loads AutoVoteConfigurations first from cache, then from bundled copy.
+   */
+  public void seedFromCache() {
+    CacheManager cache = CacheManager.getInstance();
+
+    List<Game> cachedGames = cache.getGames();
+    if (!cachedGames.isEmpty()) {
+      indexGames(cachedGames);
+      LOGGER.info("Seeded {} games from cache", cachedGames.size());
+    }
+
+    List<AutoVoteConfiguration> cached = sanitize(cache.getAutoVoteConfigurations());
+    if (!cached.isEmpty()) {
+      this.autoVoteConfigurations = cached;
+      LOGGER.info("Seeded {} autovote configurations from cache", cached.size());
+      return;
+    }
+
+    List<AutoVoteConfiguration> bundled = sanitize(readBundledAutoVoteConfig());
+    this.autoVoteConfigurations = bundled;
+    LOGGER.info("Seeded {} autovote configurations from the bundled copy", bundled.size());
+  }
+
   /** Run on every cube join, not once at startup: this data changes server-side. */
   public void loadInitialData() {
     LOGGER.info("Loading initial data from {} & {}", this.baseUrl, this.baseUrlv2);
 
     this.loadLeaderboardConfiguration();
     this.loadGames();
+    this.loadAutoVoteConfig();
   }
 
   private void loadGames() {
@@ -78,17 +122,8 @@ public class CubepanionAPI {
             return;
           }
 
-          Map<String, Game> byName = new HashMap<>();
-          Map<Integer, Game> byId = new HashMap<>();
-          for (var game : games) {
-            byId.put(game.id(), game);
-
-            byName.put(game.name(), game);
-            byName.put(game.displayName(), game);
-            game.aliases().forEach(a -> byName.put(a, game));
-          }
-          this.games = byName;
-          this.gameById = byId;
+          indexGames(games);
+          CacheManager.getInstance().putGames(games);
 
             LOGGER.info("Loaded {} games", games.size());
         })
@@ -96,6 +131,114 @@ public class CubepanionAPI {
             LOGGER.error("Failed to load games, some features may not work correctly {}", ex);
           return null;
         });
+  }
+
+  private void indexGames(List<Game> games) {
+    Map<String, Game> byName = new HashMap<>();
+    Map<Integer, Game> byId = new HashMap<>();
+    for (var game : games) {
+      byId.put(game.id(), game);
+
+      byName.put(game.name(), game);
+      byName.put(game.displayName(), game);
+      game.aliases().forEach(a -> byName.put(a, game));
+    }
+    this.games = byName;
+    this.gameById = byId;
+  }
+
+  /** A failed or empty fetch keeps whatever was seeded, rather than clearing it. */
+  public CompletableFuture<Void> loadAutoVoteConfig() {
+    return this.get(AUTO_VOTE_CONFIG_URL, autoVoteConfigToken)
+        .thenAccept(configurations -> {
+          List<AutoVoteConfiguration> sanitized = sanitize(configurations);
+          if (sanitized.isEmpty()) {
+            LOGGER.warn("Autovote config came back empty, keeping the {} configurations already loaded",
+                this.autoVoteConfigurations.size());
+            return;
+          }
+
+          this.autoVoteConfigurations = sanitized;
+          CacheManager.getInstance().putAutoVoteConfigurations(sanitized);
+          LOGGER.info("Loaded {} autovote configurations", sanitized.size());
+        })
+        .exceptionally(ex -> {
+          LOGGER.error("Failed to load the autovote config, keeping the {} configurations already loaded",
+              this.autoVoteConfigurations.size(), ex);
+          return null;
+        });
+  }
+
+  public List<AutoVoteConfiguration> getAutoVoteConfigurations() {
+    return this.autoVoteConfigurations;
+  }
+
+  private List<AutoVoteConfiguration> readBundledAutoVoteConfig() {
+    Optional<Path> path = FabricLoader.getInstance()
+        .getModContainer(CubeCraftPlusClient.MOD_ID)
+        .flatMap(container -> container.findPath(BUNDLED_AUTO_VOTE_CONFIG));
+    if (path.isEmpty()) {
+      LOGGER.warn("Bundled autovote config {} is missing from the mod jar", BUNDLED_AUTO_VOTE_CONFIG);
+      return List.of();
+    }
+
+    try (Reader reader = Files.newBufferedReader(path.get())) {
+      return gson.fromJson(reader, autoVoteConfigToken);
+    } catch (IOException | JsonParseException e) {
+      LOGGER.warn("Failed to read the bundled autovote config", e);
+      return List.of();
+    }
+  }
+
+  /** Drops malformed entries, so nothing downstream null-checks or bounds-checks a remote number. */
+  private static List<AutoVoteConfiguration> sanitize(@Nullable List<AutoVoteConfiguration> configurations) {
+    if (configurations == null) {
+      return List.of();
+    }
+
+    List<AutoVoteConfiguration> result = new ArrayList<>();
+    for (AutoVoteConfiguration configuration : configurations) {
+      if (configuration == null || configuration.gameName() == null) {
+        continue;
+      }
+      if (configuration.hotbarSlot() < 0 || configuration.hotbarSlot() > 8) {
+        LOGGER.warn("Skipping autovote config for {}: hotbar slot {} is out of range",
+            configuration.gameName(), configuration.hotbarSlot());
+        continue;
+      }
+
+      List<AutoVoteCategory> categories = configuration.categories();
+      if (categories == null || categories.isEmpty() || !categoriesAreValid(configuration, categories)) {
+        continue;
+      }
+
+      result.add(configuration);
+    }
+    return List.copyOf(result);
+  }
+
+  private static boolean categoriesAreValid(AutoVoteConfiguration configuration, List<AutoVoteCategory> categories) {
+    for (AutoVoteCategory category : categories) {
+      if (category == null || category.id() == null || category.name() == null) {
+        return false;
+      }
+
+      List<AutoVoteCategoryOption> options = category.options();
+      if (options == null || options.isEmpty() || category.choiceIndex() < -1) {
+        LOGGER.warn("Skipping autovote config for {}: category {} is malformed",
+            configuration.gameName(), category.id());
+        return false;
+      }
+
+      for (AutoVoteCategoryOption option : options) {
+        if (option == null || option.name() == null || option.slot() < -1) {
+          LOGGER.warn("Skipping autovote config for {}: category {} has a malformed option",
+              configuration.gameName(), category.id());
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
 //    this.loadChestLocations()

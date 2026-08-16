@@ -25,6 +25,8 @@ public class CubeCraftPlusClient implements ClientModInitializer {
 		LOGGER.debug("{} DEBUG", MOD_ID);
 
 		ConfigManager.getInstance().init();
+		// Load Autovote config from cache first, then bundled copy to make sure Autovote stays working even if Cubepanion API is down
+		CubepanionAPI.getInstance().seedFromCache();
 
 		ServerEventHandler.register();
 		CubeEvents.CUBE_JOIN.register(() -> CubepanionAPI.getInstance().loadInitialData());
