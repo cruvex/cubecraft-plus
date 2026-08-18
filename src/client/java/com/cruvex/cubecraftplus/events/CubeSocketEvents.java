@@ -4,7 +4,7 @@ import com.cruvex.cubecraftplus.cubesocket.CubeSocketState;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 
-public class CubeSocketEvents {
+public final class CubeSocketEvents {
 
     public static final Event<Connected> SOCKET_CONNECT =
             EventFactory.createArrayBacked(Connected.class,
@@ -48,5 +48,8 @@ public class CubeSocketEvents {
     @FunctionalInterface
     public interface StateUpdated {
         void onStateUpdated(CubeSocketState state);
+    }
+
+    private CubeSocketEvents() {
     }
 }

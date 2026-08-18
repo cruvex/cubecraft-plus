@@ -4,7 +4,8 @@ import com.cruvex.cubecraftplus.model.CubeGame;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 
-public class CubeEvents {
+public final class CubeEvents {
+
     public static final Event<CubeJoin> CUBE_JOIN =
             EventFactory.createArrayBacked(CubeJoin.class,
                     callbacks -> () -> {
@@ -25,5 +26,8 @@ public class CubeEvents {
     @FunctionalInterface
     public interface CubeGameJoin {
         void onGameJoin(CubeGame game);
+    }
+
+    private CubeEvents() {
     }
 }

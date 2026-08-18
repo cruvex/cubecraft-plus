@@ -3,7 +3,6 @@ package com.cruvex.cubecraftplus;
 import com.cruvex.cubecraftplus.commands.CommandManager;
 import com.cruvex.cubecraftplus.cubesocket.CubeSocket;
 import com.cruvex.cubecraftplus.events.CubeEvents;
-import com.cruvex.cubecraftplus.events.ServerEventHandler;
 import com.cruvex.cubecraftplus.external.CubepanionAPI;
 import com.cruvex.cubecraftplus.managers.AutoVoteManager;
 import com.cruvex.cubecraftplus.managers.ConfigManager;
@@ -15,27 +14,25 @@ import org.slf4j.LoggerFactory;
 
 public class CubeCraftPlusClient implements ClientModInitializer {
 
-	public static final String MOD_ID = "cubecraft-plus";
+    public static final String MOD_ID = "cubecraft-plus";
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-	@Override
-	public void onInitializeClient() {
-		LOGGER.info("{} client init", MOD_ID);
-		LOGGER.debug("{} DEBUG", MOD_ID);
+    @Override
+    public void onInitializeClient() {
+        LOGGER.info("{} client init", MOD_ID);
 
-		ConfigManager.getInstance().init();
-		// Load Autovote config from cache first, then bundled copy to make sure Autovote stays working even if Cubepanion API is down
-		CubepanionAPI.getInstance().seedFromCache();
+        ConfigManager.getInstance().init();
+        // Seed autovote from cache, then the bundled copy, so it keeps working when the API is down
+        CubepanionAPI.getInstance().seedFromCache();
 
-		ServerEventHandler.register();
-		CubeEvents.CUBE_JOIN.register(() -> CubepanionAPI.getInstance().loadInitialData());
+        CubeEvents.CUBE_JOIN.register(() -> CubepanionAPI.getInstance().loadInitialData());
 
-		CommandManager.register();
+        CommandManager.register();
 
-		CubeCraftManager.getInstance().init();
-		AutoVoteManager.getInstance().init();
-		LeaderboardSubmitManager.getInstance().init();
-		CubeSocket.getInstance().init();
-	}
+        CubeCraftManager.getInstance().init();
+        AutoVoteManager.getInstance().init();
+        LeaderboardSubmitManager.getInstance().init();
+        CubeSocket.getInstance().init();
+    }
 }

@@ -9,12 +9,12 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerTeam;
-import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Tracks which CubeCraft game the player is in, read off the sidebar. */
+/** Detects CubeCraft itself and, once there, which game the player is in, read off the sidebar. */
 public class CubeCraftManager {
 
     private static CubeCraftManager instance;
@@ -34,34 +34,41 @@ public class CubeCraftManager {
     }
 
     public void init() {
-        registerListeners();
-    }
-
-    private void registerListeners() {
         ScoreboardEvents.ADD_OBJECTIVE.register(this::onAddObjective);
         ScoreboardEvents.TEAM_CHANGE.register(this::onTeamChange);
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onServerJoin(client));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
+    }
+
+    private void onServerJoin(Minecraft client) {
+        reset();
+
+        String ip = Util.getServerIp(client);
+        if (!Util.isKubusMaken(ip)) {
+            Debug.log("Joined {}, not CubeCraft", ip == null ? "singleplayer" : ip);
+            return;
+        }
+
+        Debug.log("Joined CubeCraft ({})", ip);
+        CubeEvents.CUBE_JOIN.invoker().onCubeJoin();
     }
 
     private void onTeamChange(PlayerTeam team) {
         Matcher matcher = SERVER_ID_PATTERN.matcher(team.getPlayerPrefix().getString());
-        if (!matcher.matches()) return;
-
-        setServerId(matcher.group(1));
+        if (matcher.matches()) {
+            setServerId(matcher.group(1));
+        }
     }
 
-    private void onAddObjective(@NotNull Objective objective) {
-        var gameOptional = CubeGame.fromObjectiveTitle(objective.getDisplayName());
-
-        if (gameOptional.isEmpty()) {
-            Debug.log("onAddObjective: No game found for objective: {}", objective.getDisplayName() == null ? "(none)" : objective.getDisplayName().getString());
+    private void onAddObjective(Objective objective) {
+        Optional<CubeGame> game = CubeGame.fromObjectiveTitle(objective.getDisplayName());
+        if (game.isEmpty()) {
+            Debug.log("No game found for objective: {}", objective.getDisplayName().getString());
             return;
         }
 
-        CubeGame game = gameOptional.get();
-        Debug.log("onAddObjective: Game found: {}", game.name());
-        this.setCurrentGame(game);
+        Debug.log("Game found: {}", game.get().name());
+        setCurrentGame(game.get());
     }
 
     public CubeGame getCurrentGame() {

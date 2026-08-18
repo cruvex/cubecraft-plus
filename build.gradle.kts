@@ -32,7 +32,6 @@ dependencies {
 
 	implementation("net.fabricmc:fabric-loader:${providers.gradleProperty("loader_version").get()}")
 
-	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation("net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty("fabric_api_version").get()}")
 }
 
@@ -68,7 +67,6 @@ tasks.jar {
 	}
 }
 
-// configure the maven publication
 publishing {
 	publications {
 		register<MavenPublication>("mavenJava") {

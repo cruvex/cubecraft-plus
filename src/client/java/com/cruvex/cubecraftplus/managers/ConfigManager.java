@@ -16,12 +16,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Loads and saves {@code config/cubecraft-plus.json}. A missing or corrupt file falls back
- * to defaults and is rewritten, so existing files pick up new fields.
+ * Loads and saves the mod config. A missing or corrupt file falls back to defaults and is
+ * rewritten, so existing files pick up new fields.
  */
 public class ConfigManager {
 
-    private final Logger LOGGER = CubeCraftPlusClient.LOGGER;
+    private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
 
     private static ConfigManager instance;
 

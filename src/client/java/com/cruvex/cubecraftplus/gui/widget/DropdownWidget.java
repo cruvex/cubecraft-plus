@@ -14,15 +14,10 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Vanilla-styled dropdown (vanilla has no dropdown widget of its own). Collapsed it
- * renders exactly like a vanilla button showing "Name: Value ▾"; clicking expands an
- * option list whose entries are also drawn as vanilla buttons. The list is rendered
- * by the owning screen in a second pass (renderPopup) so it draws on top of
- * neighboring widgets, and opens upward when there is not enough room below.
- *
- * Mouse routing: the popup lies outside this widget's bounds (it may overlap other
- * widgets or scrolling list rows), so the owning screen must call handlePopupClick
- * from its mouseClicked override before the normal bounds-based widget routing.
+ * Vanilla-styled dropdown, which vanilla itself has no widget for. The open option list
+ * overhangs neighbouring widgets and scrolling list rows, so the owning screen has to draw
+ * it through {@link #extractPopup} and route clicks to {@link #handlePopupClick} ahead of
+ * its own bounds-based widget routing. Opens upward when there is no room below.
  */
 public class DropdownWidget<T> extends AbstractButton {
 
@@ -50,10 +45,6 @@ public class DropdownWidget<T> extends AbstractButton {
         this.closeOthers = closeOthers;
         this.value = initial;
         updateMessage();
-    }
-
-    public T getValue() {
-        return value;
     }
 
     public boolean isOpen() {

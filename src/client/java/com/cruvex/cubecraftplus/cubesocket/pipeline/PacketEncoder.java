@@ -10,21 +10,21 @@ import io.netty.handler.codec.MessageToByteEncoder;
 
 public class PacketEncoder extends MessageToByteEncoder<Packet> {
 
-  private final CubeSocket cubeSocket;
+    private final CubeSocket cubeSocket;
 
-  public PacketEncoder(CubeSocket cubeSocket) {
-    this.cubeSocket = cubeSocket;
-  }
-
-  @Override
-  protected void encode(ChannelHandlerContext ctx, Packet packet, ByteBuf byteBuf) {
-    int id = this.cubeSocket.getProtocol().getPacketId(packet);
-    if (id != 0 && id != 1) {
-      Debug.log("CubeSocket out: {} {}", id, packet.getClass().getSimpleName());
+    public PacketEncoder(CubeSocket cubeSocket) {
+        this.cubeSocket = cubeSocket;
     }
 
-    PacketBuffer buffer = new PacketBuffer(byteBuf);
-    buffer.writeVarIntToBuffer(id);
-    packet.write(buffer);
-  }
+    @Override
+    protected void encode(ChannelHandlerContext ctx, Packet packet, ByteBuf byteBuf) {
+        int id = this.cubeSocket.getProtocol().getPacketId(packet);
+        if (id != 0 && id != 1) {
+            Debug.log("CubeSocket out: {} {}", id, packet.getClass().getSimpleName());
+        }
+
+        PacketBuffer buffer = new PacketBuffer(byteBuf);
+        buffer.writeVarIntToBuffer(id);
+        packet.write(buffer);
+    }
 }

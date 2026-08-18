@@ -26,7 +26,6 @@ public abstract class ConfigTab implements Tab {
     protected static final int BUTTON_WIDTH = 150;
     protected static final int BUTTON_HEIGHT = 20;
 
-
     protected final ConfigScreen screen;
     protected final ConfigOptionsList list;
     private final Layout layout = new GridLayout();
@@ -62,10 +61,7 @@ public abstract class ConfigTab implements Tab {
         return Component.empty();
     }
 
-    /**
-     * The tab content is a scrolling list rather than a laid-out grid, so there is nothing
-     * for the tab bar to arrange.
-     */
+    /** The content is a scrolling list, so the tab bar has nothing to arrange. */
     @Override
     public Layout getLayout() {
         return layout;

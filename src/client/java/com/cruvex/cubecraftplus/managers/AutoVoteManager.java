@@ -3,8 +3,6 @@ package com.cruvex.cubecraftplus.managers;
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.events.CubeEvents;
 import com.cruvex.cubecraftplus.model.CubeGame;
-import com.cruvex.cubecraftplus.model.GameVotes;
-import com.cruvex.cubecraftplus.model.GameVotes.VotePair;
 import com.cruvex.cubecraftplus.util.Debug;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
@@ -67,7 +65,7 @@ public class AutoVoteManager {
     private int stateTicks;
     private int delayTicks;
     private int voteIndex;
-    private List<VotePair> votes = List.of();
+    private List<GameVotes.VotePair> votes = List.of();
     private int votingHotbarSlot = -1;
     // Menu we last clicked in, so a stale screen can't be re-clicked
     private int lastContainerId = -1;
@@ -191,7 +189,7 @@ public class AutoVoteManager {
     private void tickOpeningMain(Minecraft client, LocalPlayer player) {
         if (retryUseIfNoMenu(client, player)) return;
 
-        VotePair vote = votes.get(voteIndex);
+        GameVotes.VotePair vote = votes.get(voteIndex);
         String submenuTitle = vote.submenuTitle().toLowerCase(Locale.ROOT);
         ChestMenu menu = openMenu(client, title -> title.contains("voting") && !title.contains(submenuTitle), true);
         if (menu == null || !isPopulated(menu, vote.categorySlot())) return; // retry next tick
@@ -203,7 +201,7 @@ public class AutoVoteManager {
     }
 
     private void tickOpeningSub(Minecraft client, LocalPlayer player) {
-        VotePair vote = votes.get(voteIndex);
+        GameVotes.VotePair vote = votes.get(voteIndex);
         // Entry state for games without a category menu, so the use may need retrying here too
         if (!vote.hasSubmenu() && retryUseIfNoMenu(client, player)) return;
 
@@ -219,7 +217,7 @@ public class AutoVoteManager {
     private void tickVoting(Minecraft client, LocalPlayer player) {
         if (--delayTicks > 0) return;
 
-        VotePair vote = votes.get(voteIndex);
+        GameVotes.VotePair vote = votes.get(voteIndex);
         ChestMenu menu = openMenu(client, title -> title.contains(vote.submenuTitle().toLowerCase(Locale.ROOT)), false);
         if (menu == null) return;
 
