@@ -212,9 +212,9 @@ public class LeaderboardSubmitManager {
         if (player == null) return;
 
         player.sendSystemMessage(
-                Component.literal("Submitted " + places + " ")
+                Component.literal("Successfully submitted ")
                         .append(Component.literal(game.displayName()).withStyle(ChatFormatting.AQUA))
-                        .append(Component.literal(" leaderboard places to Cubepanion."))
+                        .append(Component.literal(" leaderboard to Cubepanion."))
                         .withStyle(ChatFormatting.GREEN));
     }
 
