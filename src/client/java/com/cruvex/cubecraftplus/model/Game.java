@@ -12,4 +12,9 @@ import java.util.List;
  */
 public record Game(int id, String name, String displayName, List<String> aliases, boolean active,
                    String scoreType, boolean shouldTrack, boolean hasPreLobby) {
+
+    /** The lobby is a game like any other to the API, but has no leaderboard to search. */
+    public boolean isLobby() {
+        return "main_lobby".equals(name);
+    }
 }
