@@ -1,0 +1,207 @@
+[
+    {
+        "id": 1,
+        "name": "free_for_all",
+        "displayName": "Free For All",
+        "aliases": [
+            "ffa"
+        ],
+        "active": true,
+        "scoreType": "kills",
+        "shouldTrack": true,
+        "hasPreLobby": false
+    },
+    {
+        "id": 2,
+        "name": "parkour",
+        "displayName": "Parkour",
+        "aliases": [
+            "Simple Parkour",
+            "Easy Parkour",
+            "Medium Parkour",
+            "Hard Parkour"
+        ],
+        "active": true,
+        "scoreType": "medals",
+        "shouldTrack": false,
+        "hasPreLobby": false
+    },
+    {
+        "id": 3,
+        "name": "bedwars",
+        "displayName": "BedWars",
+        "aliases": [
+            "bw",
+            "team_bedwars",
+            "Team BedWars"
+        ],
+        "active": true,
+        "scoreType": "wins",
+        "shouldTrack": true,
+        "hasPreLobby": true
+    },
+    {
+        "id": 4,
+        "name": "ender",
+        "displayName": "Ender",
+        "aliases": [
+            
+        ],
+        "active": false,
+        "scoreType": "wins",
+        "shouldTrack": false,
+        "hasPreLobby": false
+    },
+    {
+        "id": 5,
+        "name": "team_lucky_islands",
+        "displayName": "Team Lucky Islands",
+        "aliases": [
+            "tli"
+        ],
+        "active": false,
+        "scoreType": "wins",
+        "shouldTrack": true,
+        "hasPreLobby": false
+    },
+    {
+        "id": 6,
+        "name": "snowman_survival",
+        "displayName": "Snowman Survival",
+        "aliases": [
+            "ss"
+        ],
+        "active": false,
+        "scoreType": "medals",
+        "shouldTrack": true,
+        "hasPreLobby": false
+    },
+    {
+        "id": 7,
+        "name": "skyblock",
+        "displayName": "Skyblock",
+        "aliases": [
+            "sb"
+        ],
+        "active": false,
+        "scoreType": "",
+        "shouldTrack": false,
+        "hasPreLobby": false
+    },
+    {
+        "id": 8,
+        "name": "pillars_of_fortune",
+        "displayName": "Pillars of Fortune",
+        "aliases": [
+            "pof",
+            "ic",
+            "pf"
+        ],
+        "active": true,
+        "scoreType": "wins",
+        "shouldTrack": true,
+        "hasPreLobby": false
+    },
+    {
+        "id": 9,
+        "name": "disasters",
+        "displayName": "Disasters",
+        "aliases": [
+            "disaster"
+        ],
+        "active": true,
+        "scoreType": "wins",
+        "shouldTrack": true,
+        "hasPreLobby": false
+    },
+    {
+        "id": 10,
+        "name": "solo_skywars",
+        "displayName": "Solo SkyWars",
+        "aliases": [
+            "sw",
+            "skywars"
+        ],
+        "active": true,
+        "scoreType": "wins",
+        "shouldTrack": true,
+        "hasPreLobby": false
+    },
+    {
+        "id": 11,
+        "name": "team_eggwars",
+        "displayName": "Team EggWars",
+        "aliases": [
+            "tew",
+            "ew",
+            "eggwars"
+        ],
+        "active": true,
+        "scoreType": "wins",
+        "shouldTrack": true,
+        "hasPreLobby": true
+    },
+    {
+        "id": 12,
+        "name": "solo_lucky_islands",
+        "displayName": "Lucky Islands",
+        "aliases": [
+            "sli",
+            "li",
+            "lucky_islands",
+            "solo_luckyislands"
+        ],
+        "active": true,
+        "scoreType": "wins",
+        "shouldTrack": true,
+        "hasPreLobby": false
+    },
+    {
+        "id": 13,
+        "name": "main_lobby",
+        "displayName": "Main Lobby",
+        "aliases": [
+            "cubecraft"
+        ],
+        "active": false,
+        "scoreType": "",
+        "shouldTrack": false,
+        "hasPreLobby": false
+    },
+    {
+        "id": 14,
+        "name": "lucky_pillars",
+        "displayName": "Lucky Pillars",
+        "aliases": [
+            "lp"
+        ],
+        "active": true,
+        "scoreType": "wins",
+        "shouldTrack": true,
+        "hasPreLobby": false
+    },
+    {
+        "id": 15,
+        "name": "mob_who",
+        "displayName": "Mob Who",
+        "aliases": [
+            "mw"
+        ],
+        "active": true,
+        "scoreType": "wins",
+        "shouldTrack": false,
+        "hasPreLobby": false
+    },
+    {
+        "id": 16,
+        "name": "skyblock_dungeons",
+        "displayName": "Skyblock Dungeon",
+        "aliases": [
+            
+        ],
+        "active": false,
+        "scoreType": "",
+        "shouldTrack": false,
+        "hasPreLobby": false
+    }
+]

@@ -8,7 +8,6 @@ import com.cruvex.cubecraftplus.managers.GameVotes;
 import com.cruvex.cubecraftplus.model.AutoVoteCategory;
 import com.cruvex.cubecraftplus.model.AutoVoteCategoryOption;
 import com.cruvex.cubecraftplus.model.AutoVoteConfiguration;
-import com.cruvex.cubecraftplus.model.CubeGame;
 import com.cruvex.cubecraftplus.model.Game;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
@@ -85,11 +84,6 @@ public class AutoVoteTab extends ConfigTab {
     }
 
     private static boolean isConfigurable(AutoVoteConfiguration configuration) {
-        // Without a CubeGame constant the game is never detected, so voting could never fire
-        if (GameVotes.cubeGameFor(configuration) == CubeGame.NONE) {
-            return false;
-        }
-
         // Retired games can't be joined; null (games not loaded) shows them rather than nothing
         Game game = CubepanionAPI.getInstance().getGameById(configuration.gameId());
         return game == null || game.active();

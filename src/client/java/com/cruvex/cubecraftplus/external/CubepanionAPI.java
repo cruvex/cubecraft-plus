@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -48,6 +49,7 @@ public class CubepanionAPI {
     private static final String AUTO_VOTE_CONFIG_URL =
             "https://raw.githubusercontent.com/Fesaa/Cubepanion/refs/heads/main/config/auto_vote.json";
     private static final String BUNDLED_AUTO_VOTE_CONFIG = "assets/cubecraft-plus/auto_vote.json";
+    private static final String BUNDLED_GAMES = "assets/cubecraft-plus/games.json";
 
     private static final TypeToken<List<Game>> GAMES = new TypeToken<>() {};
     private static final TypeToken<List<LeaderboardRow>> LEADERBOARD_ROWS = new TypeToken<>() {};
@@ -77,23 +79,30 @@ public class CubepanionAPI {
         return instance;
     }
 
-    /** Last known good data, so autovote works at tick 0 with GitHub or the API unreachable. */
-    public void seedFromCache() {
-        List<Game> cachedGames = ApiCache.getInstance().getGames();
-        if (!cachedGames.isEmpty()) {
-            indexGames(cachedGames);
-            LOGGER.info("Seeded {} games from cache", cachedGames.size());
+    /**
+     * Last known good data, so game detection and autovote work at tick 0 with GitHub or the
+     * API unreachable. Cache first, then the copy bundled in the jar.
+     */
+    public void seedOfflineData() {
+        List<Game> games = ApiCache.getInstance().getGames();
+        String gamesFrom = "cache";
+        if (games.isEmpty()) {
+            games = readBundled(BUNDLED_GAMES, GAMES);
+            gamesFrom = "the bundled copy";
+        }
+        if (!games.isEmpty()) {
+            indexGames(games);
+            LOGGER.info("Seeded {} games from {}", games.size(), gamesFrom);
         }
 
-        List<AutoVoteConfiguration> cached = sanitize(ApiCache.getInstance().getAutoVoteConfigurations());
-        if (!cached.isEmpty()) {
-            this.autoVoteConfigurations = cached;
-            LOGGER.info("Seeded {} autovote configurations from cache", cached.size());
-            return;
+        List<AutoVoteConfiguration> autoVote = sanitize(ApiCache.getInstance().getAutoVoteConfigurations());
+        String autoVoteFrom = "cache";
+        if (autoVote.isEmpty()) {
+            autoVote = sanitize(readBundled(BUNDLED_AUTO_VOTE_CONFIG, AUTO_VOTE_CONFIGS));
+            autoVoteFrom = "the bundled copy";
         }
-
-        this.autoVoteConfigurations = sanitize(readBundledAutoVoteConfig());
-        LOGGER.info("Seeded {} autovote configurations from the bundled copy", this.autoVoteConfigurations.size());
+        this.autoVoteConfigurations = autoVote;
+        LOGGER.info("Seeded {} autovote configurations from {}", autoVote.size(), autoVoteFrom);
     }
 
     /** Run on every cube join, not once at startup: this data changes server-side. */
@@ -127,12 +136,23 @@ public class CubepanionAPI {
         Map<Integer, Game> byId = new HashMap<>();
         for (Game game : games) {
             byId.put(game.id(), game);
-            byName.put(game.name(), game);
-            byName.put(game.displayName(), game);
-            game.aliases().forEach(alias -> byName.put(alias, game));
+            index(byName, game.name(), game);
+            index(byName, game.displayName(), game);
+            game.aliases().forEach(alias -> index(byName, alias, game));
         }
         this.games = byName;
         this.gameById = byId;
+    }
+
+    private static void index(Map<String, Game> byName, @Nullable String key, Game game) {
+        if (key != null && !key.isBlank()) {
+            byName.put(normalize(key), game);
+        }
+    }
+
+    /** Both sides of the lookup go through this, so aliases with spaces or capitals resolve. */
+    private static String normalize(String name) {
+        return name.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
     }
 
     /** A failed or empty fetch keeps whatever was seeded, rather than clearing it. */
@@ -175,19 +195,20 @@ public class CubepanionAPI {
                 });
     }
 
-    private List<AutoVoteConfiguration> readBundledAutoVoteConfig() {
+    private <T> List<T> readBundled(String resource, TypeToken<List<T>> type) {
         Optional<Path> path = FabricLoader.getInstance()
                 .getModContainer(CubeCraftPlusClient.MOD_ID)
-                .flatMap(container -> container.findPath(BUNDLED_AUTO_VOTE_CONFIG));
+                .flatMap(container -> container.findPath(resource));
         if (path.isEmpty()) {
-            LOGGER.warn("Bundled autovote config {} is missing from the mod jar", BUNDLED_AUTO_VOTE_CONFIG);
+            LOGGER.warn("Bundled {} is missing from the mod jar", resource);
             return List.of();
         }
 
         try (Reader reader = Files.newBufferedReader(path.get())) {
-            return gson.fromJson(reader, AUTO_VOTE_CONFIGS);
+            List<T> value = gson.fromJson(reader, type);
+            return value == null ? List.of() : value;
         } catch (IOException | JsonParseException e) {
-            LOGGER.warn("Failed to read the bundled autovote config", e);
+            LOGGER.warn("Failed to read bundled {}", resource, e);
             return List.of();
         }
     }
@@ -256,7 +277,7 @@ public class CubepanionAPI {
     }
 
     public @Nullable Game tryGame(String game) {
-        return this.games.get(game.replace(" ", "_").toLowerCase().trim());
+        return this.games.get(normalize(game));
     }
 
     public Collection<Game> getAllGames() {

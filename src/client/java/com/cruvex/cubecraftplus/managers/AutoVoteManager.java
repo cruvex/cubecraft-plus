@@ -2,7 +2,7 @@ package com.cruvex.cubecraftplus.managers;
 
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.events.CubeEvents;
-import com.cruvex.cubecraftplus.model.CubeGame;
+import com.cruvex.cubecraftplus.model.Game;
 import com.cruvex.cubecraftplus.util.Debug;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
@@ -111,7 +111,7 @@ public class AutoVoteManager {
     }
 
     private void tickIdle(Minecraft client, LocalPlayer player) {
-        CubeGame game = CubeCraftManager.getInstance().getCurrentGame();
+        Game game = CubeCraftManager.getInstance().getCurrentGame();
         // Which slot holds the voting item is per-game, so resolve it before checking the item
         int hotbarSlot = GameVotes.hotbarSlotFor(game);
         boolean hasVotingItem = hotbarSlot >= 0
@@ -133,7 +133,7 @@ public class AutoVoteManager {
         votes = GameVotes.forGame(game, config);
         if (votes.isEmpty()) return; // every category set to "don't vote"
 
-        Debug.log("AutoVote: voting item detected for {}, arming", game);
+        Debug.log("AutoVote: voting item detected for {}, arming", game.name());
         votingHotbarSlot = hotbarSlot;
         // Select the slot now so the carried-item sync reaches the server before the use packet
         player.getInventory().setSelectedSlot(hotbarSlot);

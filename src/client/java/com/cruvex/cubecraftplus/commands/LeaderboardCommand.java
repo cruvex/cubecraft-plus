@@ -3,7 +3,6 @@ package com.cruvex.cubecraftplus.commands;
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.external.CubepanionAPI;
 import com.cruvex.cubecraftplus.managers.CubeCraftManager;
-import com.cruvex.cubecraftplus.model.CubeGame;
 import com.cruvex.cubecraftplus.model.Game;
 import com.cruvex.cubecraftplus.model.Leaderboard;
 import com.cruvex.cubecraftplus.model.LeaderboardRow;
@@ -110,20 +109,14 @@ public class LeaderboardCommand {
     }
 
     private static int executePlayers(CommandContext<FabricClientCommandSource> ctx) {
-        CubeGame currentGame = CubeCraftManager.getInstance().getCurrentGame();
-        if (currentGame == null || currentGame == CubeGame.NONE) {
+        Game game = CubeCraftManager.getInstance().getCurrentGame();
+        if (game == null) {
             ctx.getSource().sendError(Component.literal("No current game detected"));
             return 1;
         }
 
-        if (currentGame == CubeGame.LOBBY) {
+        if (game.isLobby()) {
             ctx.getSource().sendError(Component.literal("Cannot search leaderboards in the lobby"));
-            return 1;
-        }
-
-        Game game = CubepanionAPI.getInstance().tryGame(currentGame.getString());
-        if (game == null) {
-            ctx.getSource().sendError(Component.literal("Unknown game: " + currentGame.getString()));
             return 1;
         }
 
