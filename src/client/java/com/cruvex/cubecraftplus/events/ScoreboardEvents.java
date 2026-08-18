@@ -4,10 +4,10 @@ import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerTeam;
-import org.jetbrains.annotations.Nullable;
 
-public interface ScoreboardEvents {
-    Event<AddObjective> ADD_OBJECTIVE = EventFactory.createArrayBacked(
+public final class ScoreboardEvents {
+
+    public static final Event<AddObjective> ADD_OBJECTIVE = EventFactory.createArrayBacked(
             AddObjective.class,
             callbacks -> objective -> {
                 for (AddObjective callback : callbacks) {
@@ -15,7 +15,7 @@ public interface ScoreboardEvents {
                 }
             });
 
-    Event<TeamChange> TEAM_CHANGE = EventFactory.createArrayBacked(
+    public static final Event<TeamChange> TEAM_CHANGE = EventFactory.createArrayBacked(
             TeamChange.class,
             callbacks -> team -> {
                 for (TeamChange callback : callbacks) {
@@ -24,12 +24,15 @@ public interface ScoreboardEvents {
             });
 
     @FunctionalInterface
-    interface AddObjective {
-        void onAddObjective(@Nullable Objective objective);
+    public interface AddObjective {
+        void onAddObjective(Objective objective);
     }
 
     @FunctionalInterface
-    interface TeamChange {
+    public interface TeamChange {
         void onTeamChange(PlayerTeam team);
+    }
+
+    private ScoreboardEvents() {
     }
 }
