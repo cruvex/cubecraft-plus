@@ -2,15 +2,17 @@ package com.cruvex.cubecraftplus.managers;
 
 import com.cruvex.cubecraftplus.events.CubeEvents;
 import com.cruvex.cubecraftplus.events.ScoreboardEvents;
-import com.cruvex.cubecraftplus.model.CubeGame;
+import com.cruvex.cubecraftplus.external.CubepanionAPI;
+import com.cruvex.cubecraftplus.model.Game;
 import com.cruvex.cubecraftplus.util.Debug;
 import com.cruvex.cubecraftplus.util.Util;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerTeam;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.Optional;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,7 +24,7 @@ public class CubeCraftManager {
     /** Sidebar line CubeCraft puts the server id in, e.g. "05/08/26 (EU12B)". */
     private static final Pattern SERVER_ID_PATTERN = Pattern.compile("[0-9]{2}/[0-9]{2}/[0-9]{2} \\((.{5})\\)");
 
-    private CubeGame currentGame;
+    private Game currentGame;
     private String serverId = "";
     private String lastServerId = "";
 
@@ -61,22 +63,32 @@ public class CubeCraftManager {
     }
 
     private void onAddObjective(Objective objective) {
-        Optional<CubeGame> game = CubeGame.fromObjectiveTitle(objective.getDisplayName());
-        if (game.isEmpty()) {
-            Debug.log("No game found for objective: {}", objective.getDisplayName().getString());
+        String title = objective.getDisplayName().getString();
+        // Strip the colours and decoration CubeCraft wraps the sidebar title in
+        String cleaned = title.replaceAll("[^a-zA-Z .]", "").trim();
+        if (cleaned.isEmpty() || !cleaned.matches("[a-zA-Z ]+")) {
+            Debug.log("Sidebar title is not a game name: {}", title);
             return;
         }
 
-        Debug.log("Game found: {}", game.get().name());
-        setCurrentGame(game.get());
+        Game game = CubepanionAPI.getInstance().tryGame(cleaned);
+        if (game == null) {
+            Debug.log("No game matches sidebar title: {}", cleaned);
+            return;
+        }
+
+        Debug.log("Game found: {}", game.name());
+        setCurrentGame(game);
     }
 
-    public CubeGame getCurrentGame() {
+    public @Nullable Game getCurrentGame() {
         return currentGame;
     }
 
-    public void setCurrentGame(CubeGame currentGame) {
-        if (this.currentGame == currentGame) return;
+    // GAME_JOIN only ever fires with a game; reset() clears the field directly
+    private void setCurrentGame(Game currentGame) {
+        // Records compare by value: identity would refire on every reload of the game list
+        if (Objects.equals(this.currentGame, currentGame)) return;
         this.currentGame = currentGame;
         CubeEvents.GAME_JOIN.invoker().onGameJoin(currentGame);
     }

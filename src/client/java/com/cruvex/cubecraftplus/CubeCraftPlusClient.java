@@ -23,8 +23,9 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         LOGGER.info("{} client init", MOD_ID);
 
         ConfigManager.getInstance().init();
-        // Seed autovote from cache, then the bundled copy, so it keeps working when the API is down
-        CubepanionAPI.getInstance().seedFromCache();
+        // Seed games and autovote from cache, then the bundled copy, so both keep
+        // working when the API is down
+        CubepanionAPI.getInstance().seedOfflineData();
 
         CubeEvents.CUBE_JOIN.register(() -> CubepanionAPI.getInstance().loadInitialData());
 
