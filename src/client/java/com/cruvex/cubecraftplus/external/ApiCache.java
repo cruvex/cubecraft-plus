@@ -78,7 +78,7 @@ public class ApiCache {
         try (Reader reader = Files.newBufferedReader(path)) {
             envelope = GSON.fromJson(reader, Envelope.class);
         } catch (IOException | JsonParseException e) {
-            LOGGER.warn("Failed to read cache {}, ignoring it", path, e);
+            LOGGER.warn("Failed to read cache {}, ignoring it", ModPaths.display(path), e);
             return List.of();
         }
 
@@ -97,10 +97,10 @@ public class ApiCache {
             if (value == null) {
                 return List.of();
             }
-            Debug.log("Loaded {} entries from cache {}", value.size(), path);
+            Debug.log("Loaded {} entries from cache {}", value.size(), ModPaths.display(path));
             return value;
         } catch (JsonParseException e) {
-            LOGGER.warn("Cache {} does not match the expected shape, ignoring it", path, e);
+            LOGGER.warn("Cache {} does not match the expected shape, ignoring it", ModPaths.display(path), e);
             return List.of();
         }
     }
@@ -121,9 +121,9 @@ public class ApiCache {
             try (Writer writer = Files.newBufferedWriter(path)) {
                 GSON.toJson(envelope, writer);
             }
-            Debug.log("Saved {} entries to cache {}", value.size(), path);
+            Debug.log("Saved {} entries to cache {}", value.size(), ModPaths.display(path));
         } catch (IOException e) {
-            LOGGER.warn("Failed to save cache to {}", path, e);
+            LOGGER.warn("Failed to save cache to {}", ModPaths.display(path), e);
         }
     }
 
