@@ -24,7 +24,6 @@ public abstract class ConfigTab implements Tab {
     protected static final int BUTTON_WIDTH = 150;
     protected static final int BUTTON_HEIGHT = 20;
 
-
     protected final ConfigScreen screen;
     protected final ConfigOptionsList list;
 

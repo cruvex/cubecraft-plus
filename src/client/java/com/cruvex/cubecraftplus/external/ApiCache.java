@@ -1,4 +1,4 @@
-package com.cruvex.cubecraftplus.managers;
+package com.cruvex.cubecraftplus.external;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.model.AutoVoteConfiguration;
@@ -24,7 +24,7 @@ import java.util.List;
  * Last known good copies of the fetched data, so a launch with GitHub or the API unreachable
  * still has vote definitions and game ids at tick 0. One file per dataset; reads hit disk.
  */
-public class CacheManager {
+public class ApiCache {
 
     private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
 
@@ -36,16 +36,16 @@ public class CacheManager {
     private static final TypeToken<List<AutoVoteConfiguration>> AUTO_VOTE_TOKEN = new TypeToken<>() {};
     private static final TypeToken<List<Game>> GAMES_TOKEN = new TypeToken<>() {};
 
-    private static CacheManager instance;
+    private static ApiCache instance;
 
     private final String modVersion = FabricLoader.getInstance()
             .getModContainer(CubeCraftPlusClient.MOD_ID)
             .map(container -> container.getMetadata().getVersion().getFriendlyString())
             .orElse("unknown");
 
-    public static CacheManager getInstance() {
+    public static ApiCache getInstance() {
         if (instance == null) {
-            instance = new CacheManager();
+            instance = new ApiCache();
         }
         return instance;
     }

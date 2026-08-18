@@ -1,7 +1,11 @@
-package com.cruvex.cubecraftplus.model;
+package com.cruvex.cubecraftplus.managers;
 
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.external.CubepanionAPI;
+import com.cruvex.cubecraftplus.model.AutoVoteCategory;
+import com.cruvex.cubecraftplus.model.AutoVoteConfiguration;
+import com.cruvex.cubecraftplus.model.CubeGame;
+import com.cruvex.cubecraftplus.model.Game;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;

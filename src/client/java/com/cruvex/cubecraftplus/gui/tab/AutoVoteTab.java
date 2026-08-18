@@ -4,12 +4,12 @@ import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.external.CubepanionAPI;
 import com.cruvex.cubecraftplus.gui.screen.ConfigScreen;
 import com.cruvex.cubecraftplus.gui.widget.DropdownWidget;
+import com.cruvex.cubecraftplus.managers.GameVotes;
 import com.cruvex.cubecraftplus.model.AutoVoteCategory;
 import com.cruvex.cubecraftplus.model.AutoVoteCategoryOption;
 import com.cruvex.cubecraftplus.model.AutoVoteConfiguration;
 import com.cruvex.cubecraftplus.model.CubeGame;
 import com.cruvex.cubecraftplus.model.Game;
-import com.cruvex.cubecraftplus.model.GameVotes;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 

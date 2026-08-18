@@ -3,7 +3,7 @@ package com.cruvex.cubecraftplus.model;
 import java.util.List;
 
 /** A voting category. choiceIndex -1 means the voting item opens the vote menu directly. */
-public record AutoVoteCategory(String id, String name, String itemId, int choiceIndex,
+public record AutoVoteCategory(String id, String name, int choiceIndex,
                                String menuTitle, List<AutoVoteCategoryOption> options) {
 
     public AutoVoteCategory {

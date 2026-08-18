@@ -23,88 +23,73 @@ import java.util.concurrent.TimeUnit;
 
 public class CubeSocketSession extends PacketHandler {
 
-  private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
+    private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
 
-  private final CubeSocket socket;
+    private final CubeSocket socket;
 
-  private int keepAlivesSent;
-  private int keepAlivesReceived;
-  private long lastReload = -1;
+    private long lastReload = -1;
 
-  public CubeSocketSession(CubeSocket socket) {
-    this.socket = socket;
-  }
-
-  @Override
-  public void channelInactive(ChannelHandlerContext ctx) {
-    if (this.socket.getState() != CubeSocketState.OFFLINE) {
-      this.socket.updateState(CubeSocketState.OFFLINE);
-      CubeSocketEvents.SOCKET_DISCONNECT.invoker().onDisconnected("Server forced a disconnect");
-    }
-  }
-
-  @Override
-  public void handle(PacketHelloPong packet) {
-    this.socket.updateState(CubeSocketState.LOGIN);
-
-    Minecraft client = Minecraft.getInstance();
-    UUID uuid = client.player != null ? client.player.getUUID() : UUID.randomUUID();
-
-    this.socket.sendPacket(new PacketLogin(uuid));
-  }
-
-  @Override
-  public void handle(PacketPong packet) {
-    this.keepAlivesReceived++;
-    this.socket.keepAlive();
-
-    this.socket.schedule(() -> {
-      this.socket.sendPacket(new PacketPing());
-      this.keepAlivesSent++;
-    }, 5L, TimeUnit.SECONDS);
-  }
-
-  @Override
-  public void handle(PacketLoginComplete packet) {
-    this.socket.updateState(CubeSocketState.CONNECTED);
-
-    CubeSocketEvents.SOCKET_CONNECT.invoker().onConnected();
-    this.socket.sendPacket(new PacketPing());
-
-    this.socket.schedule(
-        () -> this.socket.sendPacket(new PacketSetProtocol(SharedConstants.getProtocolVersion())),
-        1L, TimeUnit.SECONDS);
-
-    this.socket.schedule(
-        () -> this.socket.sendPacket(PacketLocationUpdate.lobbyMove()),
-        2L, TimeUnit.SECONDS);
-  }
-
-  @Override
-  public void handle(PacketDisconnect packet) {
-    this.socket.updateState(CubeSocketState.OFFLINE);
-    CubeSocketEvents.SOCKET_DISCONNECT.invoker().onDisconnected(packet.getReason());
-  }
-
-  @Override
-  public void handle(PacketReload packet) {
-    long now = System.currentTimeMillis();
-    if (now - this.lastReload < 5000L) {
-      this.lastReload = now;
-      LOGGER.warn("CubeSocket tried reloading data less than 5s apart, ignoring");
-      return;
+    public CubeSocketSession(CubeSocket socket) {
+        this.socket = socket;
     }
 
-    CubeSocketEvents.SOCKET_RELOAD_REQUEST.invoker().onReloadRequested();
-    CubepanionAPI.getInstance().loadInitialData();
-    this.lastReload = now;
-  }
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+        if (this.socket.getState() != CubeSocketState.OFFLINE) {
+            this.socket.updateState(CubeSocketState.OFFLINE);
+            CubeSocketEvents.SOCKET_DISCONNECT.invoker().onDisconnected("Server forced a disconnect");
+        }
+    }
 
-  public int getKeepAlivesSent() {
-    return this.keepAlivesSent;
-  }
+    @Override
+    public void handle(PacketHelloPong packet) {
+        this.socket.updateState(CubeSocketState.LOGIN);
 
-  public int getKeepAlivesReceived() {
-    return this.keepAlivesReceived;
-  }
+        Minecraft client = Minecraft.getInstance();
+        UUID uuid = client.player != null ? client.player.getUUID() : UUID.randomUUID();
+
+        this.socket.sendPacket(new PacketLogin(uuid));
+    }
+
+    @Override
+    public void handle(PacketPong packet) {
+        this.socket.keepAlive();
+        this.socket.schedule(() -> this.socket.sendPacket(new PacketPing()), 5L, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public void handle(PacketLoginComplete packet) {
+        this.socket.updateState(CubeSocketState.CONNECTED);
+
+        CubeSocketEvents.SOCKET_CONNECT.invoker().onConnected();
+        this.socket.sendPacket(new PacketPing());
+
+        this.socket.schedule(
+                () -> this.socket.sendPacket(new PacketSetProtocol(SharedConstants.getProtocolVersion())),
+                1L, TimeUnit.SECONDS);
+
+        this.socket.schedule(
+                () -> this.socket.sendPacket(PacketLocationUpdate.lobbyMove()),
+                2L, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public void handle(PacketDisconnect packet) {
+        this.socket.updateState(CubeSocketState.OFFLINE);
+        CubeSocketEvents.SOCKET_DISCONNECT.invoker().onDisconnected(packet.getReason());
+    }
+
+    @Override
+    public void handle(PacketReload packet) {
+        long now = System.currentTimeMillis();
+        if (now - this.lastReload < 5000L) {
+            this.lastReload = now;
+            LOGGER.warn("CubeSocket tried reloading data less than 5s apart, ignoring");
+            return;
+        }
+
+        CubeSocketEvents.SOCKET_RELOAD_REQUEST.invoker().onReloadRequested();
+        CubepanionAPI.getInstance().loadInitialData();
+        this.lastReload = now;
+    }
 }

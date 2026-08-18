@@ -12,31 +12,31 @@ import org.slf4j.Logger;
 
 public abstract class PacketHandler extends SimpleChannelInboundHandler<Object> {
 
-  private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
+    private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
 
-  @Override
-  protected void channelRead0(ChannelHandlerContext ctx, Object packet) {
-    this.handlePacket((Packet) packet);
-  }
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, Object packet) {
+        this.handlePacket((Packet) packet);
+    }
 
-  protected void handlePacket(Packet packet) {
-    packet.handle(this);
-  }
+    protected void handlePacket(Packet packet) {
+        packet.handle(this);
+    }
 
-  @Override
-  public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-    super.exceptionCaught(ctx, cause);
-    LOGGER.error("An exception occurred while handling a CubeSocket packet", cause);
-  }
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        super.exceptionCaught(ctx, cause);
+        LOGGER.error("An exception occurred while handling a CubeSocket packet", cause);
+    }
 
-  public abstract void handle(PacketPong packet);
+    public abstract void handle(PacketPong packet);
 
-  public abstract void handle(PacketHelloPong packet);
+    public abstract void handle(PacketHelloPong packet);
 
-  public abstract void handle(PacketLoginComplete packet);
+    public abstract void handle(PacketLoginComplete packet);
 
-  public abstract void handle(PacketDisconnect packet);
+    public abstract void handle(PacketDisconnect packet);
 
-  public abstract void handle(PacketReload packet);
+    public abstract void handle(PacketReload packet);
 
 }

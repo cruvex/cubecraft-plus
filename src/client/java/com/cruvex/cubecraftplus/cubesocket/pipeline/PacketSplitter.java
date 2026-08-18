@@ -9,20 +9,20 @@ import java.util.List;
 
 public class PacketSplitter extends ByteToMessageDecoder {
 
-  @Override
-  protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) {
-    buffer.markReaderIndex();
-    if (!buffer.isReadable()) {
-      buffer.resetReaderIndex();
-      return;
-    }
+    @Override
+    protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) {
+        buffer.markReaderIndex();
+        if (!buffer.isReadable()) {
+            buffer.resetReaderIndex();
+            return;
+        }
 
-    int packetLength = PacketBuffer.readVarIntFromBuffer(buffer);
-    if (buffer.readableBytes() < packetLength) {
-      buffer.resetReaderIndex();
-      return;
-    }
+        int packetLength = PacketBuffer.readVarIntFromBuffer(buffer);
+        if (buffer.readableBytes() < packetLength) {
+            buffer.resetReaderIndex();
+            return;
+        }
 
-    out.add(buffer.readBytes(packetLength));
-  }
+        out.add(buffer.readBytes(packetLength));
+    }
 }

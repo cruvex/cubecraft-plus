@@ -6,18 +6,16 @@ import com.cruvex.cubecraftplus.cubesocket.protocol.PacketHandler;
 
 public class PacketPong extends Packet {
 
-  @Override
-  public void read(PacketBuffer buf) {
+    @Override
+    public void read(PacketBuffer buf) {
+    }
 
-  }
+    @Override
+    public void write(PacketBuffer buf) {
+    }
 
-  @Override
-  public void write(PacketBuffer buf) {
-
-  }
-
-  @Override
-  public void handle(PacketHandler packetHandler) {
-    packetHandler.handle(this);
-  }
+    @Override
+    public void handle(PacketHandler packetHandler) {
+        packetHandler.handle(this);
+    }
 }

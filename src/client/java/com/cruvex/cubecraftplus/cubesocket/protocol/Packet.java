@@ -2,10 +2,11 @@ package com.cruvex.cubecraftplus.cubesocket.protocol;
 
 public abstract class Packet {
 
-  public abstract void read(PacketBuffer buf);
+    public abstract void read(PacketBuffer buf);
 
-  public abstract void write(PacketBuffer buf);
+    public abstract void write(PacketBuffer buf);
 
-  public abstract void handle(PacketHandler packetHandler);
-
+    /** Outbound-only packets never arrive, so they leave this alone. */
+    public void handle(PacketHandler packetHandler) {
+    }
 }

@@ -15,10 +15,6 @@ public final class ModPaths {
     private static final Path LEGACY_CONFIG = FabricLoader.getInstance().getConfigDir()
             .resolve(CubeCraftPlusClient.MOD_ID + ".json");
 
-    public static Path root() {
-        return ROOT;
-    }
-
     public static Path config() {
         return ROOT.resolve("config.json");
     }
