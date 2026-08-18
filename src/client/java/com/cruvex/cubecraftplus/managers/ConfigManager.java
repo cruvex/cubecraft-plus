@@ -53,11 +53,11 @@ public class ConfigManager {
         try {
             Files.createDirectories(configPath.getParent());
             Files.move(legacy, configPath);
-            LOGGER.info("Moved config from {} to {}", legacy, configPath);
+            LOGGER.info("Moved config from {} to {}", ModPaths.display(legacy), ModPaths.display(configPath));
         } catch (IOException e) {
             // Not fatal: load() falls back to the old path and save() writes the new one
             LOGGER.warn("Could not move config from {} to {}, reading it in place instead",
-                    legacy, configPath, e);
+                    ModPaths.display(legacy), ModPaths.display(configPath), e);
         }
     }
 
@@ -70,7 +70,7 @@ public class ConfigManager {
                     config = loaded;
                 }
             } catch (IOException | JsonParseException e) {
-                LOGGER.warn("Failed to read config from {}, using defaults", source, e);
+                LOGGER.warn("Failed to read config from {}, using defaults", ModPaths.display(source), e);
             }
         }
         config.validate();
@@ -84,9 +84,9 @@ public class ConfigManager {
             try (Writer writer = Files.newBufferedWriter(configPath)) {
                 GSON.toJson(config, writer);
             }
-            Debug.log("Saved config to {}", configPath);
+            Debug.log("Saved config to {}", ModPaths.display(configPath));
         } catch (IOException e) {
-            LOGGER.warn("Failed to save config to {}", configPath, e);
+            LOGGER.warn("Failed to save config to {}", ModPaths.display(configPath), e);
         }
     }
 
