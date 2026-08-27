@@ -327,7 +327,7 @@ public class CubepanionAPI {
         return HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", "application/json")
-                .header("User-Agent", "CubeCraftPlus");
+                .header("User-Agent", "CubeCraftPlus-fabric-mod");
     }
 
     /** Completes with the response body, or fails when the status is anything but {@code expected}. */
