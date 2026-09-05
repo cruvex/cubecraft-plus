@@ -111,7 +111,7 @@ public class AutoVoteManager {
     }
 
     private void tickIdle(Minecraft client, LocalPlayer player) {
-        Game game = CubeCraftManager.getInstance().getCurrentGame();
+        Game game = GameManager.getInstance().getCurrentGame();
         // Which slot holds the voting item is per-game, so resolve it before checking the item
         int hotbarSlot = GameVotes.hotbarSlotFor(game);
         boolean hasVotingItem = hotbarSlot >= 0

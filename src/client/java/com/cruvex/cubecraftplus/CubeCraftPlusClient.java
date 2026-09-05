@@ -7,7 +7,9 @@ import com.cruvex.cubecraftplus.external.CubepanionAPI;
 import com.cruvex.cubecraftplus.managers.AutoVoteManager;
 import com.cruvex.cubecraftplus.managers.ConfigManager;
 import com.cruvex.cubecraftplus.managers.CubeCraftManager;
+import com.cruvex.cubecraftplus.managers.GameManager;
 import com.cruvex.cubecraftplus.managers.LeaderboardSubmitManager;
+import com.cruvex.cubecraftplus.util.SignalProbe;
 import net.fabricmc.api.ClientModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,9 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         CommandManager.register();
 
         CubeCraftManager.getInstance().init();
+        GameManager.getInstance().init();
+        // After the managers, so a signal is logged with the game they just concluded
+        SignalProbe.getInstance().init();
         AutoVoteManager.getInstance().init();
         LeaderboardSubmitManager.getInstance().init();
         CubeSocket.getInstance().init();

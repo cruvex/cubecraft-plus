@@ -2,16 +2,17 @@ package com.cruvex.cubecraftplus.events;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.DisplaySlot;
 import net.minecraft.world.scores.PlayerTeam;
 
 public final class ScoreboardEvents {
 
-    public static final Event<AddObjective> ADD_OBJECTIVE = EventFactory.createArrayBacked(
-            AddObjective.class,
-            callbacks -> objective -> {
-                for (AddObjective callback : callbacks) {
-                    callback.onAddObjective(objective);
+    /** A display slot was pointed at an objective. */
+    public static final Event<SetDisplayObjective> SET_DISPLAY_OBJECTIVE = EventFactory.createArrayBacked(
+            SetDisplayObjective.class,
+            callbacks -> (slot, objectiveName) -> {
+                for (SetDisplayObjective callback : callbacks) {
+                    callback.onSetDisplayObjective(slot, objectiveName);
                 }
             });
 
@@ -24,8 +25,8 @@ public final class ScoreboardEvents {
             });
 
     @FunctionalInterface
-    public interface AddObjective {
-        void onAddObjective(Objective objective);
+    public interface SetDisplayObjective {
+        void onSetDisplayObjective(DisplaySlot slot, String objectiveName);
     }
 
     @FunctionalInterface

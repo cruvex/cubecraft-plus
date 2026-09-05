@@ -29,6 +29,11 @@ public final class ModPaths {
         return ROOT.resolve("cache").resolve(name + ".json");
     }
 
+    /** Diagnostics, e.g. the {@link SignalProbe} logs. Safe to delete. */
+    public static Path debug(String name) {
+        return ROOT.resolve("debug").resolve(name);
+    }
+
     // Makes paths relative to the game directory, for display purposes.
     public static String display(Path path) {
         Path absolute = path.toAbsolutePath().normalize();

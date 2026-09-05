@@ -84,8 +84,8 @@ tasks.register("updateBundledGames") {
 	val endpoint = (findProperty("games_url") as String?) ?: "https://cubepanion.ameliah.art/api/v2/Games"
 	val target = layout.projectDirectory.file("src/main/resources/assets/cubecraft-plus/games.json").asFile
 	val projectDir = layout.projectDirectory.asFile
-	// Only what the Game record models; the API also sends icon, gameFlags and enabledFlags
-	val fields = listOf("id", "name", "displayName", "aliases", "active", "scoreType", "shouldTrack", "hasPreLobby")
+	// Only what the Game record models; the API also sends icon and gameFlags
+	val fields = listOf("id", "name", "displayName", "aliases", "active", "scoreType", "shouldTrack", "hasPreLobby", "enabledFlags")
 
 	doLast {
 		val response = HttpClient.newHttpClient().send(

@@ -27,7 +27,8 @@ public class ConfigCommand {
                         .then(ClientCommands.literal("on")
                                 .executes(ctx -> setDebug(ctx.getSource(), true)))
                         .then(ClientCommands.literal("off")
-                                .executes(ctx -> setDebug(ctx.getSource(), false))));
+                                .executes(ctx -> setDebug(ctx.getSource(), false))))
+                .then(ProbeCommand.node());
     }
 
     private static int setDebug(FabricClientCommandSource source, boolean enabled) {
