@@ -9,7 +9,8 @@
         "active": true,
         "scoreType": "kills",
         "shouldTrack": true,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 194
     },
     {
         "id": 2,
@@ -24,7 +25,8 @@
         "active": true,
         "scoreType": "medals",
         "shouldTrack": false,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 162
     },
     {
         "id": 3,
@@ -38,7 +40,8 @@
         "active": true,
         "scoreType": "wins",
         "shouldTrack": true,
-        "hasPreLobby": true
+        "hasPreLobby": true,
+        "enabledFlags": 1161
     },
     {
         "id": 4,
@@ -50,7 +53,8 @@
         "active": false,
         "scoreType": "wins",
         "shouldTrack": false,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 1032
     },
     {
         "id": 5,
@@ -62,7 +66,8 @@
         "active": false,
         "scoreType": "wins",
         "shouldTrack": true,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 1032
     },
     {
         "id": 6,
@@ -74,7 +79,8 @@
         "active": false,
         "scoreType": "medals",
         "shouldTrack": true,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 1416
     },
     {
         "id": 7,
@@ -86,7 +92,8 @@
         "active": false,
         "scoreType": "",
         "shouldTrack": false,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 146
     },
     {
         "id": 8,
@@ -100,7 +107,8 @@
         "active": true,
         "scoreType": "wins",
         "shouldTrack": true,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 1032
     },
     {
         "id": 9,
@@ -112,7 +120,8 @@
         "active": true,
         "scoreType": "wins",
         "shouldTrack": true,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 1032
     },
     {
         "id": 10,
@@ -125,7 +134,8 @@
         "active": true,
         "scoreType": "wins",
         "shouldTrack": true,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 1032
     },
     {
         "id": 11,
@@ -139,7 +149,8 @@
         "active": true,
         "scoreType": "wins",
         "shouldTrack": true,
-        "hasPreLobby": true
+        "hasPreLobby": true,
+        "enabledFlags": 1673
     },
     {
         "id": 12,
@@ -154,7 +165,8 @@
         "active": true,
         "scoreType": "wins",
         "shouldTrack": true,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 1032
     },
     {
         "id": 13,
@@ -166,7 +178,8 @@
         "active": false,
         "scoreType": "",
         "shouldTrack": false,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 6
     },
     {
         "id": 14,
@@ -178,19 +191,23 @@
         "active": true,
         "scoreType": "wins",
         "shouldTrack": true,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 1032
     },
     {
         "id": 15,
         "name": "mob_who",
-        "displayName": "Mob Who",
+        "displayName": "Mob Hunt",
         "aliases": [
-            "mw"
+            "mw",
+            "mh",
+            "mob_hunt"
         ],
         "active": true,
         "scoreType": "wins",
         "shouldTrack": false,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 1064
     },
     {
         "id": 16,
@@ -202,6 +219,7 @@
         "active": false,
         "scoreType": "",
         "shouldTrack": false,
-        "hasPreLobby": false
+        "hasPreLobby": false,
+        "enabledFlags": 144
     }
 ]
