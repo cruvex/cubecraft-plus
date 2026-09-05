@@ -2,7 +2,7 @@ package com.cruvex.cubecraftplus.commands;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.external.CubepanionAPI;
-import com.cruvex.cubecraftplus.managers.CubeCraftManager;
+import com.cruvex.cubecraftplus.managers.GameManager;
 import com.cruvex.cubecraftplus.model.Game;
 import com.cruvex.cubecraftplus.model.Leaderboard;
 import com.cruvex.cubecraftplus.model.LeaderboardRow;
@@ -109,7 +109,7 @@ public class LeaderboardCommand {
     }
 
     private static int executePlayers(CommandContext<FabricClientCommandSource> ctx) {
-        Game game = CubeCraftManager.getInstance().getCurrentGame();
+        Game game = GameManager.getInstance().getCurrentGame();
         if (game == null) {
             ctx.getSource().sendError(Component.literal("No current game detected"));
             return 1;
