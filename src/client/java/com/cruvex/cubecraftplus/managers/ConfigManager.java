@@ -78,15 +78,18 @@ public class ConfigManager {
         save();
     }
 
-    public void save() {
+    /** Returns whether the file was written. */
+    public boolean save() {
         try {
             Files.createDirectories(configPath.getParent());
             try (Writer writer = Files.newBufferedWriter(configPath)) {
                 GSON.toJson(config, writer);
             }
             Debug.log("Saved config to {}", ModPaths.display(configPath));
+            return true;
         } catch (IOException e) {
             LOGGER.warn("Failed to save config to {}", ModPaths.display(configPath), e);
+            return false;
         }
     }
 
@@ -98,9 +101,10 @@ public class ConfigManager {
         return GSON.fromJson(GSON.toJson(config), ModConfig.class);
     }
 
-    public void update(ModConfig newConfig) {
+    /** Applies the new config, and returns whether it also made it to disk. */
+    public boolean update(ModConfig newConfig) {
         newConfig.validate();
         this.config = newConfig;
-        save();
+        return save();
     }
 }

@@ -2,6 +2,7 @@ package com.cruvex.cubecraftplus.gui.tab;
 
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.gui.screen.ConfigScreen;
+import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.network.chat.Component;
 
 /** Small standalone features that don't warrant a tab of their own. */
@@ -13,10 +14,20 @@ public class GeneralTab extends ConfigTab {
         super(screen);
 
         ModConfig.ChestFinderConfig chestFinder = config.chestFinder;
+        list.addHeader(Component.translatable(LANG_PREFIX + "chestfinder.title"));
+
+        CycleButton<Boolean> highlight = toggle(LANG_PREFIX + "chestfinder.highlight",
+                LANG_PREFIX + "chestfinder.highlight.tooltip",
+                chestFinder.highlight, value -> chestFinder.highlight = value);
+        // The highlight only draws while the finder itself is on
+        highlight.active = chestFinder.enabled;
+
         list.addBig(toggle(LANG_PREFIX + "chestfinder", LANG_PREFIX + "chestfinder.tooltip",
-                chestFinder.enabled, value -> chestFinder.enabled = value));
-        list.addBig(toggle(LANG_PREFIX + "chestfinder.highlight", LANG_PREFIX + "chestfinder.highlight.tooltip",
-                chestFinder.highlight, value -> chestFinder.highlight = value));
+                chestFinder.enabled, value -> {
+                    chestFinder.enabled = value;
+                    highlight.active = value;
+                }));
+        list.addBig(highlight);
     }
 
     @Override
