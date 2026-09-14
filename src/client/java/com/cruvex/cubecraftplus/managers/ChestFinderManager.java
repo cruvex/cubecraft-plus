@@ -11,8 +11,11 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.gizmos.GizmoStyle;
+import net.minecraft.gizmos.Gizmos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,7 +26,11 @@ public class ChestFinderManager {
     private static final int POLL_INTERVAL_TICKS = 20;
     private static final int SEARCH_TICKS = 100; // Search for 5 seconds after chest message
 
+    private static final int HIGHLIGHT_STROKE = 0xFF55FF55;
+    private static final int HIGHLIGHT_FILL = 0x4055FF55;
+
     private int searchTicksLeft = 0;
+    private BlockPos foundChest;
 
     static ChestFinderManager instance;
 
@@ -37,8 +44,11 @@ public class ChestFinderManager {
     public void init() {
         ClientReceiveMessageEvents.GAME.register((message, _) -> onMessage(message));
         ClientTickEvents.END_CLIENT_TICK.register(_ -> onEndTick());
-        // Reset search ticks on server switch
-        ClientPlayConnectionEvents.JOIN.register((_, _, _) -> searchTicksLeft = 0);
+        // Reset search and highlight on server switch
+        ClientPlayConnectionEvents.JOIN.register((_, _, _) -> {
+            searchTicksLeft = 0;
+            foundChest = null;
+        });
     }
 
     private void onMessage(Component message) {
@@ -46,11 +56,18 @@ public class ChestFinderManager {
         if (!message.getString().equals(chestMessage))
             return;
 
+        startSearch();
+    }
+
+    public void startSearch() {
         // The chest might not be loaded in when the message arrives, so we search for a set period
         searchTicksLeft = SEARCH_TICKS;
+        foundChest = null;
     }
 
     private void onEndTick() {
+        highlightFoundChest();
+
         if (searchTicksLeft <= 0) {
             return;
         }
@@ -73,11 +90,34 @@ public class ChestFinderManager {
 
         searchTicksLeft = 0;
         ChestLocation location = possibleChest.get();
+        foundChest = new BlockPos(location.x(), location.y(), location.z());
 
         Chat.send(Component.translatable("cubecraftplus.chestfinder.found",
                         Component.literal(location.x() + ", " + location.y() + ", " + location.z())
                                 .withStyle(ChatFormatting.AQUA))
                 .withStyle(ChatFormatting.GREEN));
+    }
+
+    private void highlightFoundChest() {
+        if (foundChest == null || !ConfigManager.getInstance().getConfig().chestFinder.highlight) {
+            return;
+        }
+
+        ClientLevel level = Minecraft.getInstance().level;
+        // Drop the highlight once the chest is claimed, but keep it while its chunk is unloaded
+        if (level == null || (level.isLoaded(foundChest) && level.getBlockState(foundChest).getBlock() != Blocks.CHEST)) {
+            foundChest = null;
+            return;
+        }
+
+        // Tick gizmos only live for one tick, so re-emit every tick to keep the box drawn
+        Gizmos.cuboid(foundChest, 0.02F, GizmoStyle.strokeAndFill(HIGHLIGHT_STROKE, 2.5F, HIGHLIGHT_FILL))
+                .setAlwaysOnTop();
+
+        // Line width is in screen pixels, so a tall beam stays visible from far away
+        Vec3 beamStart = Vec3.atBottomCenterOf(foundChest.above());
+        Gizmos.line(beamStart, beamStart.add(0, 255, 0), HIGHLIGHT_STROKE, 4F)
+                .setAlwaysOnTop();
     }
 
     private Optional<ChestLocation> findLobbyChest() {

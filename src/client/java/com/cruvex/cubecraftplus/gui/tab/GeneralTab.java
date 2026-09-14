@@ -15,6 +15,8 @@ public class GeneralTab extends ConfigTab {
         ModConfig.ChestFinderConfig chestFinder = config.chestFinder;
         list.addBig(toggle(LANG_PREFIX + "chestfinder", LANG_PREFIX + "chestfinder.tooltip",
                 chestFinder.enabled, value -> chestFinder.enabled = value));
+        list.addBig(toggle(LANG_PREFIX + "chestfinder.highlight", LANG_PREFIX + "chestfinder.highlight.tooltip",
+                chestFinder.highlight, value -> chestFinder.highlight = value));
     }
 
     @Override
