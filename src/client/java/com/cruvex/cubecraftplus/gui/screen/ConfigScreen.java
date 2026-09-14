@@ -6,6 +6,8 @@ import com.cruvex.cubecraftplus.gui.tab.GeneralTab;
 import com.cruvex.cubecraftplus.gui.tab.LeaderboardTab;
 import com.cruvex.cubecraftplus.gui.widget.DropdownWidget;
 import com.cruvex.cubecraftplus.managers.ConfigManager;
+import com.cruvex.cubecraftplus.util.Chat;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.tabs.TabManager;
@@ -80,7 +82,10 @@ public class ConfigScreen extends Screen {
     }
 
     private void saveAndClose() {
-        ConfigManager.getInstance().update(draft);
+        boolean saved = ConfigManager.getInstance().update(draft);
+        Chat.send(saved
+                ? Component.translatable("cubecraftplus.config.saved").withStyle(ChatFormatting.GREEN)
+                : Component.translatable("cubecraftplus.config.savefailed").withStyle(ChatFormatting.RED));
         this.minecraft.setScreen(parent);
     }
 
