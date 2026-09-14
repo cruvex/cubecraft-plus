@@ -25,6 +25,9 @@ public class ModConfig {
     public static class AutoVoteConfig {
         public boolean enabled = true;
 
+        /** Votes through the container packets, so the menus never open on screen. */
+        public boolean silent = true;
+
         public Map<String, Integer> slots = new HashMap<>();
     }
 
