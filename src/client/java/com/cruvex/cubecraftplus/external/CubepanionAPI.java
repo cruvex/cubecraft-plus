@@ -5,6 +5,7 @@ import com.cruvex.cubecraftplus.model.AutoVoteCategory;
 import com.cruvex.cubecraftplus.model.AutoVoteCategoryOption;
 import com.cruvex.cubecraftplus.model.AutoVoteConfiguration;
 import com.cruvex.cubecraftplus.model.BatchRequest;
+import com.cruvex.cubecraftplus.model.ChestLocation;
 import com.cruvex.cubecraftplus.model.Game;
 import com.cruvex.cubecraftplus.model.Leaderboard;
 import com.cruvex.cubecraftplus.model.LeaderboardConfiguration;
@@ -54,6 +55,7 @@ public class CubepanionAPI {
     private static final TypeToken<List<Game>> GAMES = new TypeToken<>() {};
     private static final TypeToken<List<LeaderboardRow>> LEADERBOARD_ROWS = new TypeToken<>() {};
     private static final TypeToken<List<AutoVoteConfiguration>> AUTO_VOTE_CONFIGS = new TypeToken<>() {};
+    private static final TypeToken<List<ChestLocation>> CHEST_LOCATIONS = new TypeToken<>() {};
     private static final TypeToken<LeaderboardConfiguration> LEADERBOARD_CONFIG = TypeToken.get(LeaderboardConfiguration.class);
     private static final TypeToken<Leaderboard> LEADERBOARD = TypeToken.get(Leaderboard.class);
     private static final TypeToken<PlayerLeaderboard> PLAYER_LEADERBOARD = TypeToken.get(PlayerLeaderboard.class);
@@ -68,6 +70,7 @@ public class CubepanionAPI {
     private volatile Map<Integer, Game> gameById = Map.of();
     private volatile List<AutoVoteConfiguration> autoVoteConfigurations = List.of();
     private volatile LeaderboardConfiguration leaderboardConfiguration = LeaderboardConfiguration.DISABLED;
+    private volatile List<ChestLocation> chestLocations = List.of();
 
     private CubepanionAPI() {
     }
@@ -112,6 +115,7 @@ public class CubepanionAPI {
         loadLeaderboardConfiguration();
         loadGames();
         loadAutoVoteConfig();
+        loadChestLocations();
     }
 
     private void loadGames() {
@@ -291,6 +295,31 @@ public class CubepanionAPI {
 
     public CompletableFuture<PlayerLeaderboard> getPlayerLeaderboard(String name) {
         return get(BASE_URL_V2 + "/Leaderboard/player/" + name, PLAYER_LEADERBOARD);
+    }
+
+    public CompletableFuture<Void> loadChestLocations() {
+        return get(BASE_URL + "/Chests", CHEST_LOCATIONS)
+                .thenAccept(locations -> {
+                    if (locations == null || locations.isEmpty()) {
+                        LOGGER.warn("Chest locations came back empty, keeping the {} locations already loaded",
+                                this.chestLocations.size());
+                        return;
+                    }
+
+                    this.chestLocations = List.copyOf(locations);
+                    // The endpoint only serves the active season, so every entry shares it
+                    String season = locations.getFirst().seasonName();
+                    Debug.info("Loaded {} chest locations for season {}", locations.size(), season);
+                })
+                .exceptionally(ex -> {
+                    LOGGER.error("Failed to load chest locations, keeping the {} locations already loaded",
+                            this.chestLocations.size(), ex);
+                    return null;
+                });
+    }
+
+    public List<ChestLocation> getChestLocations() {
+        return this.chestLocations;
     }
 
     public CompletableFuture<Void> submit(Game game, List<LeaderboardRow> entries, String playerUuid) {
