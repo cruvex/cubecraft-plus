@@ -21,32 +21,47 @@ public class AutoVoteTab extends ConfigTab {
 
     private static final String LANG_PREFIX = "cubecraftplus.autovote.";
 
+    /** Everything under the enabled toggle, greyed out while auto vote is off. */
+    private final List<AbstractWidget> dependentWidgets = new ArrayList<>();
+
     public AutoVoteTab(ConfigScreen screen, ModConfig.AutoVoteConfig config) {
         super(screen);
 
-        list.addBig(toggle(LANG_PREFIX + "enabled", config.enabled, value -> config.enabled = value));
+        list.addBig(toggle(LANG_PREFIX + "enabled", config.enabled, value -> {
+            config.enabled = value;
+            setDependentsActive(value);
+        }));
+
+        AbstractWidget silent = toggle(LANG_PREFIX + "silent", LANG_PREFIX + "silent.tooltip", config.silent,
+                value -> config.silent = value);
+        dependentWidgets.add(silent);
+        list.addBig(silent);
 
         List<AutoVoteConfiguration> configurations = supportedConfigurations();
         if (configurations.isEmpty()) {
             list.addHeader(Component.translatable(LANG_PREFIX + "unavailable"));
-            return;
         }
 
         for (AutoVoteConfiguration configuration : configurations) {
             list.addHeader(Component.literal(configuration.gameName()));
             addCategoryRows(config, configuration);
         }
+
+        setDependentsActive(config.enabled);
     }
 
-    /** Two dropdowns per row. */
-    private void addCategoryRows(ModConfig.AutoVoteConfig config, AutoVoteConfiguration configuration) {
-        List<AbstractWidget> widgets = new ArrayList<>();
-        for (AutoVoteCategory category : configuration.categories()) {
-            widgets.add(categoryDropdown(config, category));
+    private void setDependentsActive(boolean active) {
+        for (AbstractWidget widget : dependentWidgets) {
+            widget.active = active;
         }
+    }
 
-        for (int i = 0; i < widgets.size(); i += 2) {
-            list.addSmall(widgets.get(i), i + 1 < widgets.size() ? widgets.get(i + 1) : null);
+    /** One dropdown per row. */
+    private void addCategoryRows(ModConfig.AutoVoteConfig config, AutoVoteConfiguration configuration) {
+        for (AutoVoteCategory category : configuration.categories()) {
+            AbstractWidget dropdown = categoryDropdown(config, category);
+            dependentWidgets.add(dropdown);
+            list.addBig(dropdown);
         }
     }
 

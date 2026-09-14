@@ -3,7 +3,8 @@
 	"package": "com.cruvex.cubecraftplus.mixins",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"ClientPacketListenerMixin"
+		"ClientPacketListenerMixin",
+		"ContainerMenuMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
