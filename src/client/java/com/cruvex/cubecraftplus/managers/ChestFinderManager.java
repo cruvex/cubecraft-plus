@@ -42,10 +42,11 @@ public class ChestFinderManager {
     }
 
     private void onMessage(Component message) {
+        if (!ConfigManager.getInstance().getConfig().chestFinder.enabled) return;
         if (!message.getString().equals(chestMessage))
             return;
 
-        // The chest might not be loaded in when the message arrives
+        // The chest might not be loaded in when the message arrives, so we search for a set period
         searchTicksLeft = SEARCH_TICKS;
     }
 
@@ -63,7 +64,7 @@ public class ChestFinderManager {
 
         if (possibleChest.isEmpty()) {
             if (searchTicksLeft == 0) {
-                Component notFound = Component.literal("Could not find chest... :(").withStyle(ChatFormatting.RED);
+                Component notFound = Component.translatable("cubecraftplus.chestfinder.notfound").withStyle(ChatFormatting.RED);
                 Chat.send(notFound);
             }
 
@@ -73,9 +74,9 @@ public class ChestFinderManager {
         searchTicksLeft = 0;
         ChestLocation location = possibleChest.get();
 
-        Chat.send(Component.literal("Found the hidden chest at ")
-                .append(Component.literal(location.x() + ", " + location.y() + ", " + location.z())
-                        .withStyle(ChatFormatting.AQUA))
+        Chat.send(Component.translatable("cubecraftplus.chestfinder.found",
+                        Component.literal(location.x() + ", " + location.y() + ", " + location.z())
+                                .withStyle(ChatFormatting.AQUA))
                 .withStyle(ChatFormatting.GREEN));
     }
 
@@ -94,7 +95,9 @@ public class ChestFinderManager {
 
         for (ChestLocation location : locations) {
             BlockPos pos = new BlockPos(location.x(), location.y(), location.z());
-            if (!level.isLoaded(pos)) {                 // out of range or not loaded yet, not absent
+
+            // out of range or not loaded yet, not absent
+            if (!level.isLoaded(pos)) {
                 continue;
             }
             if (level.getBlockState(pos).getBlock() == Blocks.CHEST) {

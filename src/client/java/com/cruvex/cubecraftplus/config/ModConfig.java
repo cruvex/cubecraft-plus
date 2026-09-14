@@ -9,7 +9,13 @@ public class ModConfig {
 
     public LeaderboardSubmitConfig leaderboardSubmit = new LeaderboardSubmitConfig();
 
+    public ChestFinderConfig chestFinder = new ChestFinderConfig();
+
     public static class LeaderboardSubmitConfig {
+        public boolean enabled = true;
+    }
+
+    public static class ChestFinderConfig {
         public boolean enabled = true;
     }
 
@@ -22,6 +28,7 @@ public class ModConfig {
     /** Repairs fields Gson left null, so nothing downstream has to null-check. */
     public void validate() {
         if (leaderboardSubmit == null) leaderboardSubmit = new LeaderboardSubmitConfig();
+        if (chestFinder == null) chestFinder = new ChestFinderConfig();
 
         if (autoVote == null) autoVote = new AutoVoteConfig();
         if (autoVote.slots == null) autoVote.slots = new HashMap<>();
