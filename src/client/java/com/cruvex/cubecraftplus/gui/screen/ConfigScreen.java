@@ -2,6 +2,7 @@ package com.cruvex.cubecraftplus.gui.screen;
 
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.gui.tab.AutoVoteTab;
+import com.cruvex.cubecraftplus.gui.tab.GeneralTab;
 import com.cruvex.cubecraftplus.gui.tab.LeaderboardTab;
 import com.cruvex.cubecraftplus.gui.widget.DropdownWidget;
 import com.cruvex.cubecraftplus.managers.ConfigManager;
@@ -43,6 +44,7 @@ public class ConfigScreen extends Screen {
         dropdowns.clear();
         this.tabNavigationBar = TabNavigationBar.builder(tabManager, this.width)
                 .addTabs(
+                        new GeneralTab(this, draft),
                         new AutoVoteTab(this, draft.autoVote),
                         new LeaderboardTab(this, draft.leaderboardSubmit))
                 .build();

@@ -212,9 +212,8 @@ public class LeaderboardSubmitManager {
         if (player == null) return;
 
         player.sendSystemMessage(
-                Component.literal("Successfully submitted ")
-                        .append(Component.literal(game.displayName()).withStyle(ChatFormatting.AQUA))
-                        .append(Component.literal(" leaderboard to Cubepanion."))
+                Component.translatable("cubecraftplus.leaderboard.submitted",
+                                Component.literal(game.displayName()).withStyle(ChatFormatting.AQUA))
                         .withStyle(ChatFormatting.GREEN));
     }
 
