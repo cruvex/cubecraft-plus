@@ -1,7 +1,9 @@
 package com.cruvex.cubecraftplus.managers;
 
+import com.cruvex.cubecraftplus.events.CubeEvents;
 import com.cruvex.cubecraftplus.external.CubepanionAPI;
 import com.cruvex.cubecraftplus.model.ChestLocation;
+import com.cruvex.cubecraftplus.model.Game;
 import com.cruvex.cubecraftplus.util.Chat;
 import com.cruvex.cubecraftplus.util.Debug;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -30,6 +32,7 @@ public class ChestFinderManager {
     private static final int HIGHLIGHT_FILL = 0x4055FF55;
 
     private int searchTicksLeft = 0;
+    private boolean reportNotFound;
     private BlockPos foundChest;
 
     static ChestFinderManager instance;
@@ -44,6 +47,8 @@ public class ChestFinderManager {
     public void init() {
         ClientReceiveMessageEvents.GAME.register((message, _) -> onMessage(message));
         ClientTickEvents.END_CLIENT_TICK.register(_ -> onEndTick());
+        // The announcement isn't always sent, so also look whenever we land in a lobby
+        CubeEvents.GAME_JOIN.register(this::onGameJoin);
         // Reset search and highlight on server switch
         ClientPlayConnectionEvents.JOIN.register((_, _, _) -> {
             searchTicksLeft = 0;
@@ -59,9 +64,22 @@ public class ChestFinderManager {
         startSearch();
     }
 
+    private void onGameJoin(Game game) {
+        if (!ConfigManager.getInstance().getConfig().chestFinder.enabled) return;
+        if (!game.isLobby()) return;
+
+        // Most lobbies have no chest, so a miss here isn't worth reporting
+        startSearch(false);
+    }
+
     public void startSearch() {
-        // The chest might not be loaded in when the message arrives, so we search for a set period
+        startSearch(true);
+    }
+
+    private void startSearch(boolean reportNotFound) {
+        // The chest might not be loaded in when the search starts, so we search for a set period
         searchTicksLeft = SEARCH_TICKS;
+        this.reportNotFound = reportNotFound;
         foundChest = null;
     }
 
@@ -80,7 +98,7 @@ public class ChestFinderManager {
         Optional<ChestLocation> possibleChest = findLobbyChest();
 
         if (possibleChest.isEmpty()) {
-            if (searchTicksLeft == 0) {
+            if (searchTicksLeft == 0 && reportNotFound) {
                 Component notFound = Component.translatable("cubecraftplus.chestfinder.notfound").withStyle(ChatFormatting.RED);
                 Chat.send(notFound);
             }

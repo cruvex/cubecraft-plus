@@ -2,7 +2,7 @@
   "cubecraftplus.config.title": "CubeCraft+",
   "cubecraftplus.general.title": "General",
   "cubecraftplus.general.chestfinder": "Hidden chest finder",
-  "cubecraftplus.general.chestfinder.tooltip": "Looks for the hidden lobby chest when it's announced and posts its coordinates in chat.",
+  "cubecraftplus.general.chestfinder.tooltip": "Looks for the hidden lobby chest when you join a lobby or it's announced, and posts its coordinates in chat.",
   "cubecraftplus.general.chestfinder.highlight": "Highlight found chest",
   "cubecraftplus.general.chestfinder.highlight.tooltip": "Draws a box and a beam on the found chest, visible through walls.",
   "cubecraftplus.chestfinder.found": "Found the hidden chest at %s",
