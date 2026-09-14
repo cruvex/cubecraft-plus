@@ -1,0 +1,107 @@
+package com.cruvex.cubecraftplus.managers;
+
+import com.cruvex.cubecraftplus.external.CubepanionAPI;
+import com.cruvex.cubecraftplus.model.ChestLocation;
+import com.cruvex.cubecraftplus.util.Chat;
+import com.cruvex.cubecraftplus.util.Debug;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.block.Blocks;
+
+import java.util.List;
+import java.util.Optional;
+
+public class ChestFinderManager {
+    final String chestMessage = "A chest has been hidden somewhere in the lobby with some goodies inside!";
+
+    private static final int POLL_INTERVAL_TICKS = 20;
+    private static final int SEARCH_TICKS = 100; // Search for 5 seconds after chest message
+
+    private int searchTicksLeft = 0;
+
+    static ChestFinderManager instance;
+
+    public static ChestFinderManager getInstance() {
+        if (instance == null) {
+            instance = new ChestFinderManager();
+        }
+        return instance;
+    }
+
+    public void init() {
+        ClientReceiveMessageEvents.GAME.register((message, _) -> onMessage(message));
+        ClientTickEvents.END_CLIENT_TICK.register(_ -> onEndTick());
+        // Reset search ticks on server switch
+        ClientPlayConnectionEvents.JOIN.register((_, _, _) -> searchTicksLeft = 0);
+    }
+
+    private void onMessage(Component message) {
+        if (!message.getString().equals(chestMessage))
+            return;
+
+        // The chest might not be loaded in when the message arrives
+        searchTicksLeft = SEARCH_TICKS;
+    }
+
+    private void onEndTick() {
+        if (searchTicksLeft <= 0) {
+            return;
+        }
+
+        searchTicksLeft--;
+        if (searchTicksLeft % POLL_INTERVAL_TICKS != 0) {
+            return;
+        }
+
+        Optional<ChestLocation> possibleChest = findLobbyChest();
+
+        if (possibleChest.isEmpty()) {
+            if (searchTicksLeft == 0) {
+                Component notFound = Component.literal("Could not find chest... :(").withStyle(ChatFormatting.RED);
+                Chat.send(notFound);
+            }
+
+            return;
+        }
+
+        searchTicksLeft = 0;
+        ChestLocation location = possibleChest.get();
+
+        Chat.send(Component.literal("Found the hidden chest at ")
+                .append(Component.literal(location.x() + ", " + location.y() + ", " + location.z())
+                        .withStyle(ChatFormatting.AQUA))
+                .withStyle(ChatFormatting.GREEN));
+    }
+
+    private Optional<ChestLocation> findLobbyChest() {
+        List<ChestLocation> locations = CubepanionAPI.getInstance().getChestLocations();
+        ClientLevel level = Minecraft.getInstance().level;
+
+        if (level == null) {
+            return Optional.empty();
+        }
+
+        if (locations.isEmpty()) {
+            Debug.log("No chest locations loaded");
+            return Optional.empty();
+        }
+
+        for (ChestLocation location : locations) {
+            BlockPos pos = new BlockPos(location.x(), location.y(), location.z());
+            if (!level.isLoaded(pos)) {                 // out of range or not loaded yet, not absent
+                continue;
+            }
+            if (level.getBlockState(pos).getBlock() == Blocks.CHEST) {
+                return Optional.of(location);
+            }
+        }
+
+        return Optional.empty();
+    }
+}

@@ -4,11 +4,7 @@ import com.cruvex.cubecraftplus.commands.CommandManager;
 import com.cruvex.cubecraftplus.cubesocket.CubeSocket;
 import com.cruvex.cubecraftplus.events.CubeEvents;
 import com.cruvex.cubecraftplus.external.CubepanionAPI;
-import com.cruvex.cubecraftplus.managers.AutoVoteManager;
-import com.cruvex.cubecraftplus.managers.ConfigManager;
-import com.cruvex.cubecraftplus.managers.CubeCraftManager;
-import com.cruvex.cubecraftplus.managers.GameManager;
-import com.cruvex.cubecraftplus.managers.LeaderboardSubmitManager;
+import com.cruvex.cubecraftplus.managers.*;
 import com.cruvex.cubecraftplus.util.SignalProbe;
 import net.fabricmc.api.ClientModInitializer;
 import org.slf4j.Logger;
@@ -33,6 +29,7 @@ public class CubeCraftPlusClient implements ClientModInitializer {
 
         CommandManager.register();
 
+        ChestFinderManager.getInstance().init();
         CubeCraftManager.getInstance().init();
         GameManager.getInstance().init();
         // After the managers, so a signal is logged with the game they just concluded
