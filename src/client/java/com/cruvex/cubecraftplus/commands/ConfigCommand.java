@@ -1,6 +1,7 @@
 package com.cruvex.cubecraftplus.commands;
 
 import com.cruvex.cubecraftplus.gui.screen.ConfigScreen;
+import com.cruvex.cubecraftplus.managers.ChestFinderManager;
 import com.cruvex.cubecraftplus.util.Debug;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -28,7 +29,16 @@ public class ConfigCommand {
                                 .executes(ctx -> setDebug(ctx.getSource(), true)))
                         .then(ClientCommands.literal("off")
                                 .executes(ctx -> setDebug(ctx.getSource(), false))))
+                .then(ClientCommands.literal("chestfinder")
+                        .executes(ctx -> findChest(ctx.getSource())))
                 .then(ProbeCommand.node());
+    }
+
+    private static int findChest(FabricClientCommandSource source) {
+        ChestFinderManager.getInstance().startSearch();
+        source.sendFeedback(Component.translatable("cubecraftplus.chestfinder.searching")
+                .withStyle(ChatFormatting.GRAY));
+        return 1;
     }
 
     private static int setDebug(FabricClientCommandSource source, boolean enabled) {

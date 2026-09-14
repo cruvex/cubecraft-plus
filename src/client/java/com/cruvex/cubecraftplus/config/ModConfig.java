@@ -17,6 +17,9 @@ public class ModConfig {
 
     public static class ChestFinderConfig {
         public boolean enabled = true;
+
+        /** Draws a box and beam on the found chest. */
+        public boolean highlight = true;
     }
 
     public static class AutoVoteConfig {
