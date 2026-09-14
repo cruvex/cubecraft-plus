@@ -1,5 +1,6 @@
 package com.cruvex.cubecraftplus.managers;
 
+import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.events.CubeEvents;
 import com.cruvex.cubecraftplus.external.CubepanionAPI;
 import com.cruvex.cubecraftplus.model.ChestLocation;
@@ -117,7 +118,8 @@ public class ChestFinderManager {
     }
 
     private void highlightFoundChest() {
-        if (foundChest == null || !ConfigManager.getInstance().getConfig().chestFinder.highlight) {
+        ModConfig.ChestFinderConfig config = ConfigManager.getInstance().getConfig().chestFinder;
+        if (foundChest == null || !config.enabled || !config.highlight) {
             return;
         }
 
