@@ -29,6 +29,8 @@ public class CubeCraftPlusClient implements ClientModInitializer {
 
         CommandManager.register();
 
+        ChatQueryManager.getInstance().init();
+        FriendsManager.getInstance().init();
         ChestFinderManager.getInstance().init();
         CubeCraftManager.getInstance().init();
         GameManager.getInstance().init();
