@@ -2,8 +2,14 @@ package com.cruvex.cubecraftplus.mixins;
 
 import com.cruvex.cubecraftplus.events.PlayerEvents;
 import com.cruvex.cubecraftplus.events.ScoreboardEvents;
+import com.cruvex.cubecraftplus.managers.ChatQueryManager;
+import com.cruvex.cubecraftplus.util.ChatDump;
 import com.cruvex.cubecraftplus.util.SignalProbe;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
 import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
 import net.minecraft.network.protocol.game.ClientboundLoginPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
@@ -16,6 +22,7 @@ import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.network.protocol.game.ClientboundSetScorePacket;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.scores.PlayerTeam;
 import org.spongepowered.asm.mixin.Mixin;
@@ -65,6 +72,28 @@ public class ClientPacketListenerMixin {
         if (GameType.isValidId(id)) {
             PlayerEvents.GAME_MODE_CHANGE.invoker().onGameModeChange(GameType.byId(id));
         }
+    }
+
+    // Past the thread handoff, where only server chat arrives: not action bar text or the mod's own messages
+    @Inject(method = "handleSystemChat", cancellable = true, at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/multiplayer/chat/ChatListener;handleSystemMessage(Lnet/minecraft/network/chat/Component;Z)V"))
+    private void onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
+        ChatDump.onServerMessage(packet.content());
+        if (ChatQueryManager.getInstance().onServerMessage(packet.content())) {
+            ci.cancel();
+        }
+    }
+
+    // Clicked commands send their packet directly, skipping ALLOW_COMMAND
+    @WrapOperation(method = {"sendUnattendedCommand", "lambda$openCommandSendConfirmationWindow$0"},
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V"))
+    private void holdClickedCommand(ClientPacketListener self, Packet<?> packet, Operation<Void> original) {
+        if (packet instanceof ServerboundChatCommandPacket command
+                && ChatQueryManager.getInstance().hold(command.command())) {
+            return;
+        }
+        original.call(self, packet);
     }
 
     // The rest is diagnostics, see SignalProbe
