@@ -4,9 +4,15 @@ import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 /** Layout of everything the mod writes. Anything under cache/ is safe to delete. */
 public final class ModPaths {
+
+    private static final DateTimeFormatter TIMESTAMP =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss", Locale.ROOT);
 
     private static final Path GAME_DIR = FabricLoader.getInstance().getGameDir()
             .toAbsolutePath().normalize();
@@ -32,6 +38,11 @@ public final class ModPaths {
     /** Diagnostics, e.g. the {@link SignalProbe} logs. Safe to delete. */
     public static Path debug(String name) {
         return ROOT.resolve("debug").resolve(name);
+    }
+
+    /** A new diagnostics file named for when it was made, e.g. {@code chat-2026-09-15_11-05-46.log}. */
+    public static Path debugLog(String prefix) {
+        return debug(prefix + "-" + LocalDateTime.now().format(TIMESTAMP) + ".log");
     }
 
     // Makes paths relative to the game directory, for display purposes.
