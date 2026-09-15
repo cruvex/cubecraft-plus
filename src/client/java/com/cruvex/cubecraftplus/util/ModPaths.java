@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.UUID;
 
 /** Layout of everything the mod writes. Anything under cache/ is safe to delete. */
 public final class ModPaths {
@@ -29,6 +30,11 @@ public final class ModPaths {
 
     public static Path legacyConfig() {
         return LEGACY_CONFIG;
+    }
+
+    /** The last complete friends list per account; not under cache/, since it is history. */
+    public static Path friends(UUID account) {
+        return ROOT.resolve("friends").resolve(account + ".json");
     }
 
     public static Path cache(String name) {

@@ -8,7 +8,6 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
-import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 
@@ -25,13 +24,12 @@ public final class FriendsCommand {
         source.sendFeedback(Component.translatable("cubecraftplus.friends.refreshing")
                 .withStyle(ChatFormatting.GRAY));
 
-        FriendsManager.getInstance().fetchPages().whenComplete((pages, error) -> {
+        FriendsManager.getInstance().refresh().whenComplete((friends, error) -> {
             if (error != null) {
                 source.sendError(Component.translatable("cubecraftplus.friends.refresh_failed", describe(error)));
                 return;
             }
 
-            List<Friend> friends = FriendsManager.merge(pages);
             long online = friends.stream().filter(Friend::online).count();
             source.sendFeedback(Component.translatable("cubecraftplus.friends.refreshed", friends.size(), online)
                     .withStyle(ChatFormatting.GREEN));
