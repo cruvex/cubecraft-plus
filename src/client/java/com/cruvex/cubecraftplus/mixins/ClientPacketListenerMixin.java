@@ -1,5 +1,6 @@
 package com.cruvex.cubecraftplus.mixins;
 
+import com.cruvex.cubecraftplus.events.HudEvents;
 import com.cruvex.cubecraftplus.events.PlayerEvents;
 import com.cruvex.cubecraftplus.events.ScoreboardEvents;
 import com.cruvex.cubecraftplus.managers.ChatQueryManager;
@@ -96,6 +97,12 @@ public class ClientPacketListenerMixin {
         original.call(self, packet);
     }
 
+    @Inject(method = "setTitleText", at = @At("TAIL"))
+    private void onSetTitleText(ClientboundSetTitleTextPacket packet, CallbackInfo ci) {
+        SignalProbe.getInstance().onTitle(packet.text());
+        HudEvents.TITLE.invoker().onTitle(packet.text());
+    }
+
     // The rest is diagnostics, see SignalProbe
 
     @Inject(method = "handleAddObjective", at = @At("TAIL"))
@@ -121,11 +128,6 @@ public class ClientPacketListenerMixin {
     @Inject(method = "handleMovePlayer", at = @At("TAIL"))
     private void onHandleMovePlayer(ClientboundPlayerPositionPacket packet, CallbackInfo ci) {
         SignalProbe.getInstance().onPlayerPosition(packet);
-    }
-
-    @Inject(method = "setTitleText", at = @At("TAIL"))
-    private void onSetTitleText(ClientboundSetTitleTextPacket packet, CallbackInfo ci) {
-        SignalProbe.getInstance().onTitle(packet.text());
     }
 
     @Inject(method = "setSubtitleText", at = @At("TAIL"))
