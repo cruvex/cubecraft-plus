@@ -1,5 +1,6 @@
 package com.cruvex.cubecraftplus.gui.screen;
 
+import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.gui.widget.FriendsList;
 import com.cruvex.cubecraftplus.managers.FriendsManager;
 import com.cruvex.cubecraftplus.model.Friend;
@@ -7,6 +8,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
 import net.minecraft.client.gui.layouts.LayoutSettings;
@@ -14,6 +16,7 @@ import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.CommonColors;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,7 +28,12 @@ import java.util.Locale;
 public class FriendsScreen extends Screen {
 
     private static final int HEADER_HEIGHT = 64;
-    private static final int FILTER_WIDTH = 200;
+    /** With the refresh button beside it, the search row is still the 200 wide the filter used to be. */
+    private static final int FILTER_WIDTH = 176;
+    private static final int BUTTON_SIZE = 20;
+    private static final int ICON_SIZE = 20;
+    private static final Identifier REFRESH_ICON =
+            Identifier.fromNamespaceAndPath(CubeCraftPlusClient.MOD_ID, "icon/refresh");
     /** How often to re-read where online friends are while the screen is open. */
     private static final long ONLINE_CHECK_MS = 10_000;
     /** CubeCraft's own order: online first, then by name. */
@@ -38,7 +46,7 @@ public class FriendsScreen extends Screen {
     private StringWidget summary;
     private EditBox filter;
     private FriendsList list;
-    private Button refreshButton;
+    private SpriteIconButton refreshButton;
 
     /** The list the rows were built from; the manager replaces it on every change. */
     private List<Friend> shown = List.of();
@@ -57,16 +65,22 @@ public class FriendsScreen extends Screen {
         header.addChild(new StringWidget(title, font), LayoutSettings::alignHorizontallyCenter);
         summary = header.addChild(new StringWidget(Component.empty(), font).setMaxWidth(width - 20),
                 LayoutSettings::alignHorizontallyCenter);
-        filter = header.addChild(new EditBox(font, FILTER_WIDTH, 20, Component.translatable("cubecraftplus.friends.filter")),
+        LinearLayout search = header.addChild(LinearLayout.horizontal().spacing(4),
                 LayoutSettings::alignHorizontallyCenter);
+        filter = search.addChild(
+                new EditBox(font, FILTER_WIDTH, BUTTON_SIZE, Component.translatable("cubecraftplus.friends.filter")));
         filter.setHint(Component.translatable("cubecraftplus.friends.filter").withStyle(ChatFormatting.DARK_GRAY));
         filter.setResponder(value -> showFriends());
+        refreshButton = search.addChild(SpriteIconButton
+                .builder(Component.translatable("cubecraftplus.friends.refresh"), button -> refresh(), true)
+                .sprite(REFRESH_ICON, ICON_SIZE, ICON_SIZE)
+                .size(BUTTON_SIZE, BUTTON_SIZE)
+                .withTootip()
+                .build());
 
         list = layout.addToContents(new FriendsList(minecraft, width, layout.getContentHeight(), layout.getHeaderHeight()));
 
         LinearLayout footer = layout.addToFooter(LinearLayout.horizontal().spacing(8));
-        refreshButton = footer.addChild(Button.builder(Component.translatable("cubecraftplus.friends.refresh"),
-                button -> refresh()).build());
         footer.addChild(Button.builder(CommonComponents.GUI_DONE, button -> onClose()).build());
 
         layout.visitWidgets(this::addRenderableWidget);
@@ -121,6 +135,7 @@ public class FriendsScreen extends Screen {
 
     private void updateStatus() {
         boolean refreshing = FriendsManager.getInstance().isRefreshing();
+        // This version's icon buttons have no loading spinner, so it just stops responding
         refreshButton.active = !refreshing;
 
         Component text;

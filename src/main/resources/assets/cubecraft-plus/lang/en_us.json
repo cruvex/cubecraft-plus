@@ -17,7 +17,7 @@
   "cubecraftplus.friends.title": "Friends",
   "cubecraftplus.friends.summary": "%s friends, %s online",
   "cubecraftplus.friends.filter": "Search friends",
-  "cubecraftplus.friends.refresh": "Refresh",
+  "cubecraftplus.friends.refresh": "Refresh Friends list",
   "cubecraftplus.friends.loading": "Loading your friends...",
   "cubecraftplus.friends.empty": "No friends loaded. Join CubeCraft, then press Refresh.",
   "cubecraftplus.friends.no_match": "No friends match your search",
