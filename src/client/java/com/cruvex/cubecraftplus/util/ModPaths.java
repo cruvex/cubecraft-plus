@@ -37,6 +37,11 @@ public final class ModPaths {
         return ROOT.resolve("friends").resolve(account + ".json");
     }
 
+    /** Player names to Mojang uuids; not under cache/, since it keeps a renamed friend's head right. */
+    public static Path playerIds() {
+        return ROOT.resolve("players").resolve("ids.json");
+    }
+
     public static Path cache(String name) {
         return ROOT.resolve("cache").resolve(name + ".json");
     }
