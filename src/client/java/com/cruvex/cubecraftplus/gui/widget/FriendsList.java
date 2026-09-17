@@ -18,6 +18,7 @@ public class FriendsList extends ObjectSelectionList<FriendsList.Entry> {
     private static final int ITEM_HEIGHT = 28;
     private static final int ROW_WIDTH = 300;
     private static final int HEAD_SIZE = 16;
+    private static final int HEAD_GAP = 6;
     private static final int TEXT_GAP = 2;
     /** {@code ChatFormatting.GREEN}, which reads better on the dark list than {@link CommonColors#GREEN}. */
     private static final int ONLINE_STATUS = 0xFF55FF55;
@@ -50,12 +51,11 @@ public class FriendsList extends ObjectSelectionList<FriendsList.Entry> {
             int x = getContentX();
             int middle = getContentYMiddle();
 
-            // Real heads come with HeadResolver (friends-gui.md §3); until then every row is the default skin
+            // The default skin until HeadResolver exists, see friends-gui.md §3
             PlayerFaceExtractor.extractRenderState(graphics, DefaultPlayerSkin.getDefaultSkin(), x, middle - HEAD_SIZE / 2, HEAD_SIZE);
 
-            int textX = x + HEAD_SIZE + 6;
-            int textWidth = getContentRight() - textX;
-            // "Offline" on most of the list is noise; the grey name already says it
+            int textX = x + HEAD_SIZE + HEAD_GAP;
+            // "Offline" on nearly every row is noise; the grey name already says it
             if (!friend.online() || friend.status().isEmpty()) {
                 graphics.text(font, friend.name(), textX, middle - font.lineHeight / 2,
                         friend.online() ? CommonColors.WHITE : CommonColors.LIGHT_GRAY);
@@ -64,18 +64,16 @@ public class FriendsList extends ObjectSelectionList<FriendsList.Entry> {
 
             int top = middle - (font.lineHeight * 2 + TEXT_GAP) / 2;
             graphics.text(font, friend.name(), textX, top, CommonColors.WHITE);
-            graphics.text(font, fit(font, friend.status(), textWidth), textX, top + font.lineHeight + TEXT_GAP, ONLINE_STATUS);
+            graphics.text(font, fit(font, friend.status(), getContentRight() - textX), textX,
+                    top + font.lineHeight + TEXT_GAP, ONLINE_STATUS);
         }
 
         @Override
         public Component getNarration() {
-            return friend.status().isEmpty()
-                    ? Component.literal(friend.name())
-                    : Component.literal(friend.name() + ", " + friend.status());
+            return Component.literal(friend.status().isEmpty() ? friend.name() : friend.name() + ", " + friend.status());
         }
     }
 
-    /** Long statuses, like a game with its map and player count, get cut with an ellipsis. */
     private static String fit(Font font, String text, int width) {
         if (font.width(text) <= width) return text;
         return font.plainSubstrByWidth(text, width - font.width(ELLIPSIS)) + ELLIPSIS;
