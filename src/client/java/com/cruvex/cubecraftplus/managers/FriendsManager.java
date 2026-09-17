@@ -19,13 +19,17 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -39,8 +43,13 @@ public class FriendsManager {
     private static final Pattern HEADER = Pattern.compile("^-+ Friends ");
     /** Absent when the list fits on one page. */
     private static final Pattern PAGE = Pattern.compile("(\\d+)/(\\d+)");
-    /** Allows rank symbols around the name. */
-    private static final Pattern LINE = Pattern.compile("^\\W*([a-zA-Z0-9_]{2,16})\\W* - (.+)$");
+    /** A name with any rank symbols around it, but no comma: that separates names sharing a line. */
+    private static final String LISTED_NAME = "[^a-zA-Z0-9_,]*[a-zA-Z0-9_]{2,16}[^a-zA-Z0-9_,]*";
+    /** Friends with the same status share a line: {@code RodzZ__, TakeMyGear - Playing Team EggWars ...}. */
+    private static final Pattern LINE = Pattern.compile("^(" + LISTED_NAME + "(?:," + LISTED_NAME + ")*) - (.+)$");
+    private static final Pattern NAME_IN_LINE = Pattern.compile("[a-zA-Z0-9_]{2,16}");
+    /** Lines, not friends: a shared line counts once. */
+    private static final int LINES_PER_PAGE = 10;
 
     // What CubeCraft says when the list changes, see docs/friends-tracking.md
     private static final String NAME = "\\W*([a-zA-Z0-9_]{2,16})\\W*";
@@ -51,10 +60,16 @@ public class FriendsManager {
     private static final Pattern REMOVED_YOU = Pattern.compile("^" + NAME + " has removed you from their friends list!$");
     private static final Pattern YOU_REMOVED = Pattern.compile("^You are no longer friends with " + NAME + "\\.$");
 
+    /** CubeCraft's own words; an online friend's status says where they are instead. */
+    private static final String ONLINE = "Online";
+    private static final String OFFLINE = "Offline";
+
     /** Share a cooldown with the page queries; /fmsg does not. */
     private static final Set<String> COMMANDS = Set.of("f", "fl", "friend", "friends");
     /** Gives the proxy time to settle before the first commands after joining. */
     private static final long JOIN_DELAY_MS = 5000;
+    /** How stale online friends' statuses may get while something is showing them. */
+    private static final long ONLINE_CHECK_MS = 10_000;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
@@ -62,8 +77,12 @@ public class FriendsManager {
 
     private List<Friend> friends = List.of();
     private @Nullable CompletableFuture<List<Friend>> refreshing;
-    /** Whether a notification arrived while a load was in flight, so its pages may have shifted. */
-    private boolean changedWhileLoading;
+    private @Nullable CompletableFuture<Void> checkingOnline;
+    /** Counts friend messages, so a load can tell whether the list moved under its pages. */
+    private int friendMessages;
+    /** When online friends' statuses were last read, by a full load or an online check. */
+    private long onlineCheckedAt;
+    private long joinedAt;
 
     /** The description is debug output, with {@code {}} for the name. */
     private record Event(Pattern pattern, String describes, Consumer<String> apply) {
@@ -73,8 +92,8 @@ public class FriendsManager {
             new Event(JOINED, "{} came online", name -> setOnline(name, true)),
             new Event(LEFT, "{} went offline", name -> setOnline(name, false)),
             // Accepting is something they just did, so they are online; the player accepting says nothing
-            new Event(THEY_ACCEPTED, "{} accepted your request", name -> add(name, true)),
-            new Event(YOU_ACCEPTED, "you accepted {}'s request", name -> add(name, false)),
+            new Event(THEY_ACCEPTED, "{} accepted your request", name -> add(new Friend(name, true, ONLINE))),
+            new Event(YOU_ACCEPTED, "you accepted {}'s request", name -> add(new Friend(name, false, ""))),
             new Event(REMOVED_YOU, "{} removed you", this::remove),
             new Event(YOU_REMOVED, "you removed {}", this::remove));
 
@@ -96,15 +115,25 @@ public class FriendsManager {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> friends = List.of()));
     }
 
+    /** Replaced rather than modified, so a changed reference means a changed list. */
     public List<Friend> getFriends() {
         return friends;
     }
 
+    public boolean isRefreshing() {
+        return refreshing != null && !refreshing.isDone();
+    }
+
+    /** Why a refresh failed, for the player: unwraps the CompletionException a failed page arrives in. */
+    public static String failureReason(Throwable error) {
+        Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
+        return cause instanceof CancellationException ? "disconnected" : cause.getMessage();
+    }
+
     /** Fetches and stores the whole list, sharing a refresh that is already running. */
     public CompletableFuture<List<Friend>> refresh() {
-        if (refreshing != null && !refreshing.isDone()) return refreshing;
+        if (isRefreshing()) return refreshing;
 
-        changedWhileLoading = false;
         refreshing = walk(false);
         return refreshing;
     }
@@ -114,12 +143,14 @@ public class FriendsManager {
      * another, and a skipped friend would later look like they had removed the player.
      */
     private CompletableFuture<List<Friend>> walk(boolean retried) {
+        int messagesBefore = friendMessages;
         return fetchPages().thenCompose(pages -> {
             List<Friend> loaded = merge(pages);
             friends = loaded;
+            onlineCheckedAt = System.currentTimeMillis();
 
             int listed = pages.stream().mapToInt(page -> page.friends().size()).sum();
-            if (!changedWhileLoading && listed == loaded.size()) {
+            if (friendMessages == messagesBefore && listed == loaded.size()) {
                 persist();
                 return CompletableFuture.completedFuture(loaded);
             }
@@ -129,9 +160,80 @@ public class FriendsManager {
             }
 
             Debug.log("Friends: list changed while loading, loading again");
-            changedWhileLoading = false;
             return walk(true);
         });
+    }
+
+    /** {@link #checkOnlineNow}, at most once per {@link #ONLINE_CHECK_MS}. */
+    public void checkOnline() {
+        if (System.currentTimeMillis() - onlineCheckedAt >= ONLINE_CHECK_MS) {
+            checkOnlineNow();
+        }
+    }
+
+    /**
+     * Re-reads where online friends are, since a join or leave message does not say. Online friends are
+     * listed first, so this is usually a single page. Skipped while a load, which reads them anyway, or
+     * another check is running, and while the proxy settles after joining.
+     */
+    public void checkOnlineNow() {
+        long now = System.currentTimeMillis();
+        if (isRefreshing() || isCheckingOnline() || now - joinedAt < JOIN_DELAY_MS) return;
+        if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
+
+        onlineCheckedAt = now;
+        int messagesBefore = friendMessages;
+        checkingOnline = fetchOnline(1, new ArrayList<>())
+                .thenAccept(online -> {
+                    if (friendMessages != messagesBefore) {
+                        Debug.log("Friends: list changed during the online check, ignoring it");
+                        return;
+                    }
+                    applyOnline(online);
+                })
+                .whenComplete((done, error) -> {
+                    if (error != null) {
+                        Debug.log("Friends: online check failed: {}", failureReason(error));
+                    }
+                });
+    }
+
+    private boolean isCheckingOnline() {
+        return checkingOnline != null && !checkingOnline.isDone();
+    }
+
+    /** Fetches pages until one lists an offline friend, which ends the online part of the list. */
+    private static CompletableFuture<List<Friend>> fetchOnline(int number, List<Friend> online) {
+        return fetchPage(number).thenCompose(page -> {
+            page.friends().stream().filter(Friend::online).forEach(online::add);
+
+            boolean allOnline = page.friends().stream().allMatch(Friend::online);
+            return allOnline && page.number() < page.total()
+                    ? fetchOnline(number + 1, online)
+                    : CompletableFuture.completedFuture(online);
+        });
+    }
+
+    private void applyOnline(List<Friend> online) {
+        Map<String, Friend> byName = new HashMap<>();
+        for (Friend friend : online) {
+            byName.put(friend.name().toLowerCase(Locale.ROOT), friend);
+        }
+
+        List<Friend> updated = friends.stream()
+                .map(friend -> {
+                    Friend listed = byName.get(friend.name().toLowerCase(Locale.ROOT));
+                    if (listed != null) return new Friend(friend.name(), true, listed.status());
+                    // Online here but not on the online pages, so a leave message was missed
+                    return friend.online() ? new Friend(friend.name(), false, OFFLINE) : friend;
+                })
+                .toList();
+        Debug.log("Friends: checked {} online friends", online.size());
+
+        // A new list rebuilds an open screen's rows, so only replace it when something changed
+        if (!updated.equals(friends)) {
+            friends = updated;
+        }
     }
 
     private void onGameMessage(Component message, boolean overlay) {
@@ -146,8 +248,8 @@ public class FriendsManager {
             Debug.log("Friends: " + event.describes(), name);
             event.apply().accept(name);
 
-            if (refreshing != null && !refreshing.isDone()) {
-                changedWhileLoading = true;
+            friendMessages++;
+            if (isRefreshing() || isCheckingOnline()) {
                 Debug.log("Friends: that arrived during a load");
             }
             return;
@@ -161,18 +263,20 @@ public class FriendsManager {
             return;
         }
 
+        // A notification does not say where they went, so this is all the status there is until a load
+        String status = online ? ONLINE : OFFLINE;
         friends = friends.stream()
-                .map(friend -> friend.name().equalsIgnoreCase(name) ? new Friend(friend.name(), online) : friend)
+                .map(friend -> friend.name().equalsIgnoreCase(name) ? new Friend(friend.name(), online, status) : friend)
                 .toList();
     }
 
-    private void add(String name, boolean online) {
-        if (known(name)) {
-            Debug.log("Friends: {} was already in the list", name);
+    private void add(Friend added) {
+        if (known(added.name())) {
+            Debug.log("Friends: {} was already in the list", added.name());
             return;
         }
 
-        friends = Stream.concat(friends.stream(), Stream.of(new Friend(name, online))).toList();
+        friends = Stream.concat(friends.stream(), Stream.of(added)).toList();
         persist();
     }
 
@@ -232,10 +336,14 @@ public class FriendsManager {
     }
 
     private void onCubeJoin() {
+        // The join load below reads the statuses, so an open screen need not check before it starts
+        joinedAt = System.currentTimeMillis();
+        onlineCheckedAt = joinedAt;
+
         UUID account = account();
         if (account != null) {
             // Known names until the load below replaces them; last session's status would be stale
-            friends = loadSaved(account).stream().map(name -> new Friend(name, false)).toList();
+            friends = loadSaved(account).stream().map(name -> new Friend(name, false, "")).toList();
         }
 
         Minecraft client = Minecraft.getInstance();
@@ -309,17 +417,26 @@ public class FriendsManager {
         if (number != expected) {
             throw new IllegalStateException("Asked for friends page " + expected + ", got " + number);
         }
+        // Only the last page can be short, so a short earlier page means a line did not match and would be lost
+        if (number < total && reply.lines().size() != LINES_PER_PAGE) {
+            throw new IllegalStateException("Friends page " + number + " had " + reply.lines().size()
+                    + " lines, expected " + LINES_PER_PAGE);
+        }
 
-        List<Friend> friends = reply.lines().stream().map(FriendsManager::parseFriend).toList();
+        List<Friend> friends = reply.lines().stream().flatMap(line -> parseLine(line).stream()).toList();
         return new Page(number, total, friends);
     }
 
-    private static Friend parseFriend(Component line) {
+    private static List<Friend> parseLine(Component line) {
         Matcher matcher = LINE.matcher(line.getString());
         if (!matcher.find()) {
             throw new IllegalStateException("Not a friend line: " + line.getString());
         }
-        // Online friends show where they are ("Playing SkyWars..."), not "Online"
-        return new Friend(matcher.group(1), !matcher.group(2).equals("Offline"));
+
+        String status = matcher.group(2);
+        boolean online = !status.equals(OFFLINE);
+        return NAME_IN_LINE.matcher(matcher.group(1)).results()
+                .map(name -> new Friend(name.group(), online, status))
+                .toList();
     }
 }
