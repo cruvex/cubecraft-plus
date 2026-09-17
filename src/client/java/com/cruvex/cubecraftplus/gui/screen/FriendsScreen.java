@@ -29,6 +29,8 @@ public class FriendsScreen extends Screen {
 
     private static final int HEADER_HEIGHT = 64;
     private static final int FILTER_WIDTH = 200;
+    /** How often to re-read where online friends are while the screen is open. */
+    private static final long ONLINE_CHECK_MS = 10_000;
     /** CubeCraft's own order: online first, then by name. */
     private static final Comparator<Friend> ORDER = Comparator.comparing(Friend::online).reversed()
             .thenComparing(Friend::name, String.CASE_INSENSITIVE_ORDER);
@@ -44,6 +46,8 @@ public class FriendsScreen extends Screen {
     /** The list the rows were built from; the manager replaces it on every change. */
     private List<Friend> shown = List.of();
     private @Nullable Component failure;
+    /** 0 until the first tick, so statuses are read fresh as soon as the screen opens. */
+    private long nextOnlineCheckAt;
 
     public FriendsScreen(Screen parent) {
         super(Component.translatable("cubecraftplus.friends.title"));
@@ -71,9 +75,6 @@ public class FriendsScreen extends Screen {
         layout.visitWidgets(this::addRenderableWidget);
         showFriends();
         repositionElements();
-
-        // Statuses can be a minute old, so read them fresh for whoever just opened the screen
-        FriendsManager.getInstance().checkOnlineNow();
     }
 
     @Override
@@ -91,7 +92,11 @@ public class FriendsScreen extends Screen {
     @Override
     public void tick() {
         // Only while the screen is open: nothing else shows where friends are
-        FriendsManager.getInstance().checkOnline();
+        long now = System.currentTimeMillis();
+        if (now >= nextOnlineCheckAt) {
+            FriendsManager.getInstance().checkOnline();
+            nextOnlineCheckAt = now + ONLINE_CHECK_MS;
+        }
 
         if (FriendsManager.getInstance().getFriends() != shown) {
             showFriends();

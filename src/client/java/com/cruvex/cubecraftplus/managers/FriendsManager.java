@@ -68,8 +68,6 @@ public class FriendsManager {
     private static final Set<String> COMMANDS = Set.of("f", "fl", "friend", "friends");
     /** Gives the proxy time to settle before the first commands after joining. */
     private static final long JOIN_DELAY_MS = 5000;
-    /** How stale online friends' statuses may get while something is showing them. */
-    private static final long ONLINE_CHECK_MS = 10_000;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
@@ -80,8 +78,6 @@ public class FriendsManager {
     private @Nullable CompletableFuture<Void> checkingOnline;
     /** Counts friend messages, so a load can tell whether the list moved under its pages. */
     private int friendMessages;
-    /** When online friends' statuses were last read, by a full load or an online check. */
-    private long onlineCheckedAt;
     private long joinedAt;
 
     /** The description is debug output, with {@code {}} for the name. */
@@ -147,7 +143,6 @@ public class FriendsManager {
         return fetchPages().thenCompose(pages -> {
             List<Friend> loaded = merge(pages);
             friends = loaded;
-            onlineCheckedAt = System.currentTimeMillis();
 
             int listed = pages.stream().mapToInt(page -> page.friends().size()).sum();
             if (friendMessages == messagesBefore && listed == loaded.size()) {
@@ -164,24 +159,15 @@ public class FriendsManager {
         });
     }
 
-    /** {@link #checkOnlineNow}, at most once per {@link #ONLINE_CHECK_MS}. */
-    public void checkOnline() {
-        if (System.currentTimeMillis() - onlineCheckedAt >= ONLINE_CHECK_MS) {
-            checkOnlineNow();
-        }
-    }
-
     /**
      * Re-reads where online friends are, since a join or leave message does not say. Online friends are
      * listed first, so this is usually a single page. Skipped while a load, which reads them anyway, or
      * another check is running, and while the proxy settles after joining.
      */
-    public void checkOnlineNow() {
-        long now = System.currentTimeMillis();
-        if (isRefreshing() || isCheckingOnline() || now - joinedAt < JOIN_DELAY_MS) return;
+    public void checkOnline() {
+        if (isRefreshing() || isCheckingOnline() || System.currentTimeMillis() - joinedAt < JOIN_DELAY_MS) return;
         if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
-        onlineCheckedAt = now;
         int messagesBefore = friendMessages;
         checkingOnline = fetchOnline(1, new ArrayList<>())
                 .thenAccept(online -> {
@@ -336,9 +322,7 @@ public class FriendsManager {
     }
 
     private void onCubeJoin() {
-        // The join load below reads the statuses, so an open screen need not check before it starts
         joinedAt = System.currentTimeMillis();
-        onlineCheckedAt = joinedAt;
 
         UUID account = account();
         if (account != null) {
