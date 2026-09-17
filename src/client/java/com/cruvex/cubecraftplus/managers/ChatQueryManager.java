@@ -23,7 +23,10 @@ import java.util.regex.Pattern;
 /** Runs server commands one at a time and captures their chat replies. Client thread only. */
 public class ChatQueryManager {
 
-    private static final long TIMEOUT_MS = 5000;
+    /** Generous: a healthy reply takes ~50ms, but CubeCraft has taken seconds under load. */
+    private static final long TIMEOUT_MS = 10000;
+    /** How long a reply to a query that gave up is still swallowed instead of reaching chat. */
+    private static final long LATE_MS = 20000;
     /** Silence that ends a reply, since CubeCraft sends no footer. */
     private static final long QUIET_MS = 250;
     /** CubeCraft rejects a command within ~1s of the last accepted one on its cooldown. */
@@ -41,11 +44,29 @@ public class ChatQueryManager {
                          CompletableFuture<Reply> future) {
     }
 
+    /** A query that gave up, still swallowing its reply in case the server gets round to it. */
+    private static final class Late {
+        private final String command;
+        private final Pattern header;
+        private final Pattern line;
+        private long until;
+        private boolean started;
+
+        private Late(Query query, long until) {
+            this.command = query.command();
+            this.header = query.header();
+            this.line = query.line();
+            this.until = until;
+        }
+    }
+
     private final Deque<Query> queue = new ArrayDeque<>();
     /** First words of player commands on the queries' cooldown, see shareCooldown. */
     private final Set<String> cooldownCommands = new HashSet<>();
     /** Player commands held back while queries run. */
     private final Deque<String> held = new ArrayDeque<>();
+    /** Queries that timed out or were cancelled, whose reply may still turn up. */
+    private final List<Late> late = new ArrayList<>();
     private long nextSendAt;
     /** Whether the running cooldown was started by a query rather than the player. */
     private boolean queryCooldown;
@@ -121,6 +142,8 @@ public class ChatQueryManager {
             return;
         }
 
+        dropCancelled();
+
         long now = System.currentTimeMillis();
 
         // Held commands go first, but not while a query awaits a reply theirs could be mistaken for
@@ -152,7 +175,14 @@ public class ChatQueryManager {
             finish();
             query.future().complete(reply);
         } else if (now - sentAt > TIMEOUT_MS) {
-            Debug.log("ChatQuery: no reply to /{}", query.command());
+            rememberLate(query);
+            if (attempts < MAX_ATTEMPTS) {
+                Debug.log("ChatQuery: no reply to /{}, sending it again", query.command());
+                retry();
+                return;
+            }
+
+            Debug.log("ChatQuery: no reply to /{}, giving up", query.command());
             finish();
             query.future().completeExceptionally(new TimeoutException("No reply to /" + query.command()));
         }
@@ -160,19 +190,20 @@ public class ChatQueryManager {
 
     /** Offers a server chat message to the query in flight; returns whether to hide it. */
     public boolean onServerMessage(Component message) {
-        Query query = queue.peek();
-        if (query == null || sentAt == 0) return false;
-
         String text = message.getString();
+
+        Query query = queue.peek();
+        if (query == null || sentAt == 0) return swallowLate(text);
+
         // Rejected before replying: resend once the cooldown allows
         if (header == null && attempts < MAX_ATTEMPTS && TOO_FAST.matcher(text).find()) {
             Debug.log("ChatQuery: /{} turned away as too fast", query.command());
-            sentAt = 0;
+            retry();
             return query.hide();
         }
 
         Pattern pattern = header == null ? query.header() : query.line();
-        if (!pattern.matcher(text).find()) return false;
+        if (!pattern.matcher(text).find()) return swallowLate(text);
 
         long now = System.currentTimeMillis();
         if (header == null) {
@@ -183,6 +214,51 @@ public class ChatQueryManager {
         }
         lastMessageAt = now;
         return query.hide();
+    }
+
+    private void rememberLate(Query query) {
+        if (query.hide()) {
+            late.add(new Late(query, System.currentTimeMillis() + LATE_MS));
+        }
+    }
+
+    /** Hides a reply nothing is waiting for any more, which would otherwise land in chat. */
+    private boolean swallowLate(String text) {
+        long now = System.currentTimeMillis();
+        late.removeIf(entry -> now > entry.until);
+
+        for (Late entry : late) {
+            if (entry.started) {
+                if (!entry.line.matcher(text).find()) continue;
+            } else {
+                if (!entry.header.matcher(text).find()) continue;
+
+                entry.started = true;
+                Debug.log("ChatQuery: swallowing a late reply to /{}", entry.command);
+            }
+
+            // Once it starts arriving it ends at the first silence, like a live reply
+            entry.until = now + QUIET_MS;
+            return true;
+        }
+        return false;
+    }
+
+    /** Drops queries whose caller gave up, e.g. the rest of a load one page already failed. */
+    private void dropCancelled() {
+        int before = queue.size();
+
+        while (!queue.isEmpty() && queue.peek().future().isCancelled()) {
+            if (sentAt != 0) {
+                rememberLate(queue.peek());
+            }
+            finish();
+        }
+        queue.removeIf(query -> query.future().isCancelled());
+
+        if (queue.size() != before) {
+            Debug.log("ChatQuery: dropped {} cancelled queries", before - queue.size());
+        }
     }
 
     private void dispatch(ClientPacketListener connection, String command, long now, boolean fromQuery) {
@@ -206,6 +282,13 @@ public class ChatQueryManager {
     private void finish() {
         queue.poll();
         clearReply();
+    }
+
+    /** Sends the head again once the cooldown allows, keeping the attempts it has used. */
+    private void retry() {
+        sentAt = 0;
+        header = null;
+        lines.clear();
     }
 
     private void clearReply() {
