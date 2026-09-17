@@ -21,10 +21,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * The friends list {@link FriendsManager} holds, filtered by name. Not a config tab: it is live
- * server state, so there is nothing to save or cancel (friends-gui.md §9).
- */
+/** The friends list {@link FriendsManager} holds, filtered by name. */
 public class FriendsScreen extends Screen {
 
     private static final int HEADER_HEIGHT = 64;
@@ -74,6 +71,7 @@ public class FriendsScreen extends Screen {
 
         layout.visitWidgets(this::addRenderableWidget);
         showFriends();
+        updateStatus();
         repositionElements();
     }
 
@@ -91,7 +89,6 @@ public class FriendsScreen extends Screen {
 
     @Override
     public void tick() {
-        // Only while the screen is open: nothing else shows where friends are
         long now = System.currentTimeMillis();
         if (now >= nextOnlineCheckAt) {
             FriendsManager.getInstance().checkOnline();
@@ -111,30 +108,25 @@ public class FriendsScreen extends Screen {
                 .filter(friend -> friend.name().toLowerCase(Locale.ROOT).contains(query))
                 .sorted(ORDER)
                 .toList());
-        updateStatus();
     }
 
     private void refresh() {
-        failure = null;
         FriendsManager.getInstance().refresh().whenComplete((friends, error) -> {
             if (error != null) {
                 failure = Component.translatable("cubecraftplus.friends.refresh_failed", FriendsManager.failureReason(error))
                         .withStyle(ChatFormatting.RED);
             }
         });
-        updateStatus();
     }
 
     private void updateStatus() {
         boolean refreshing = FriendsManager.getInstance().isRefreshing();
         refreshButton.active = !refreshing;
-        if (refreshing) {
-            // A newer refresh, perhaps from /ccp friends refresh, makes an old failure irrelevant
-            failure = null;
-        }
 
         Component text;
         if (refreshing) {
+            // A running refresh, from here or /ccp friends refresh, replaces the last one's failure
+            failure = null;
             text = Component.translatable("cubecraftplus.friends.refreshing").withStyle(ChatFormatting.GRAY);
         } else if (failure != null) {
             text = failure;
@@ -143,7 +135,7 @@ public class FriendsScreen extends Screen {
             text = Component.translatable("cubecraftplus.friends.summary", shown.size(), online).withStyle(ChatFormatting.GRAY);
         }
 
-        // Its width follows the text, so the header has to be centred again when it changes
+        // The widget sizes itself to its text, so the header needs centring again
         if (!text.equals(summary.getMessage())) {
             summary.setMessage(text);
             repositionElements();

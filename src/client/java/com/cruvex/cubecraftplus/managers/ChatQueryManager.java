@@ -65,7 +65,7 @@ public class ChatQueryManager {
     private final Set<String> cooldownCommands = new HashSet<>();
     /** Player commands held back while queries run. */
     private final Deque<String> held = new ArrayDeque<>();
-    /** Queries that timed out or were cancelled, whose reply may still turn up. */
+    /** Queries that timed out, whose reply may still turn up. */
     private final List<Late> late = new ArrayList<>();
     private long nextSendAt;
     /** Whether the running cooldown was started by a query rather than the player. */
@@ -141,8 +141,6 @@ public class ChatQueryManager {
             dropped.forEach(queued -> queued.future().cancel(false));
             return;
         }
-
-        dropCancelled();
 
         long now = System.currentTimeMillis();
 
@@ -244,23 +242,6 @@ public class ChatQueryManager {
         return false;
     }
 
-    /** Drops queries whose caller gave up, e.g. the rest of a load one page already failed. */
-    private void dropCancelled() {
-        int before = queue.size();
-
-        while (!queue.isEmpty() && queue.peek().future().isCancelled()) {
-            if (sentAt != 0) {
-                rememberLate(queue.peek());
-            }
-            finish();
-        }
-        queue.removeIf(query -> query.future().isCancelled());
-
-        if (queue.size() != before) {
-            Debug.log("ChatQuery: dropped {} cancelled queries", before - queue.size());
-        }
-    }
-
     private void dispatch(ClientPacketListener connection, String command, long now, boolean fromQuery) {
         sending = true;
         try {
@@ -292,9 +273,7 @@ public class ChatQueryManager {
     }
 
     private void clearReply() {
-        sentAt = 0;
+        retry();
         attempts = 0;
-        header = null;
-        lines.clear();
     }
 }
