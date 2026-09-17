@@ -176,6 +176,7 @@ public class FriendsManager {
     public void checkOnline() {
         if (isRefreshing() || isCheckingOnline() || System.currentTimeMillis() - joinedAt < JOIN_DELAY_MS) return;
         if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
+        if (CubeCraftManager.getInstance().isAfk()) return;
 
         int messagesBefore = friendMessages;
         checkingOnline = fetchPages(FriendsManager::allOnline)
