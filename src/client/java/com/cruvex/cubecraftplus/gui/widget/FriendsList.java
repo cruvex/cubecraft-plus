@@ -1,5 +1,6 @@
 package com.cruvex.cubecraftplus.gui.widget;
 
+import com.cruvex.cubecraftplus.managers.HeadResolver;
 import com.cruvex.cubecraftplus.model.Friend;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -9,6 +10,7 @@ import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.CommonColors;
+import net.minecraft.world.item.component.ResolvableProfile;
 
 import java.util.List;
 
@@ -51,8 +53,13 @@ public class FriendsList extends ObjectSelectionList<FriendsList.Entry> {
             int x = getContentX();
             int middle = getContentYMiddle();
 
-            // The default skin until HeadResolver exists, see friends-gui.md §3
-            PlayerFaceExtractor.extractRenderState(graphics, DefaultPlayerSkin.getDefaultSkin(), x, middle - HEAD_SIZE / 2, HEAD_SIZE);
+            ResolvableProfile head = HeadResolver.getInstance().headFor(friend.name());
+            int headY = middle - HEAD_SIZE / 2;
+            if (head != null) {
+                PlayerFaceExtractor.extractRenderState(graphics, minecraft.playerSkinRenderCache().getOrDefault(head).playerSkin(), x, headY, HEAD_SIZE);
+            } else {
+                PlayerFaceExtractor.extractRenderState(graphics, DefaultPlayerSkin.getDefaultSkin(), x, headY, HEAD_SIZE);
+            }
 
             int textX = x + HEAD_SIZE + HEAD_GAP;
             // "Offline" on nearly every row is noise; the grey name already says it

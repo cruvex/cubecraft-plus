@@ -151,6 +151,8 @@ public class FriendsManager {
             int listed = pages.stream().mapToInt(page -> page.friends().size()).sum();
             if (friendMessages == messagesBefore && listed == loaded.size()) {
                 persist();
+                // While the names are current, so a later rename cannot point a head at a stranger
+                HeadResolver.getInstance().resolve(loaded.stream().map(Friend::name).toList());
                 return CompletableFuture.completedFuture(loaded);
             }
             if (retried) {
