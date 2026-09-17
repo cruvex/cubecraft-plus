@@ -2,12 +2,12 @@ package com.cruvex.cubecraftplus.managers;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.events.CubeEvents;
+import com.cruvex.cubecraftplus.model.Friend;
+import com.cruvex.cubecraftplus.util.Debug;
 import com.cruvex.cubecraftplus.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
-import com.cruvex.cubecraftplus.model.Friend;
-import com.cruvex.cubecraftplus.util.Debug;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
@@ -32,12 +32,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-/** Reads CubeCraft's paginated friends list from chat, see docs/chat-command-capture.md. */
+/** Holds the friends list: read from chat on join and refresh, kept current from friend messages. */
 public class FriendsManager {
 
     private static final Pattern HEADER = Pattern.compile("^-+ Friends ");
@@ -96,6 +96,9 @@ public class FriendsManager {
     private record Page(int number, int total, List<Friend> friends) {
     }
 
+    private record Saved(long savedAt, List<String> names) {
+    }
+
     public static FriendsManager getInstance() {
         if (instance == null) {
             instance = new FriendsManager();
@@ -134,13 +137,14 @@ public class FriendsManager {
         return refreshing;
     }
 
-    /**
-     * A load the list changed under runs once more: shifting pages list one friend twice and can skip
-     * another, and a skipped friend would later look like they had removed the player.
-     */
+    /** A load the list changed under runs once more, since shifted pages can skip a friend. */
     private CompletableFuture<List<Friend>> walk(boolean retried) {
+        if (!CubeCraftManager.getInstance().isOnCubeCraft()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Not on CubeCraft"));
+        }
+
         int messagesBefore = friendMessages;
-        return fetchPages().thenCompose(pages -> {
+        return fetchPages(page -> true).thenCompose(pages -> {
             List<Friend> loaded = merge(pages);
             friends = loaded;
 
@@ -159,23 +163,20 @@ public class FriendsManager {
         });
     }
 
-    /**
-     * Re-reads where online friends are, since a join or leave message does not say. Online friends are
-     * listed first, so this is usually a single page. Skipped while a load, which reads them anyway, or
-     * another check is running, and while the proxy settles after joining.
-     */
+    /** Re-reads where online friends are, which join and leave messages do not say. */
     public void checkOnline() {
         if (isRefreshing() || isCheckingOnline() || System.currentTimeMillis() - joinedAt < JOIN_DELAY_MS) return;
         if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
         int messagesBefore = friendMessages;
-        checkingOnline = fetchOnline(1, new ArrayList<>())
-                .thenAccept(online -> {
+        // Online friends are listed first, so the first page with anyone offline is the last one needed
+        checkingOnline = fetchPages(page -> page.friends().stream().allMatch(Friend::online))
+                .thenAccept(pages -> {
                     if (friendMessages != messagesBefore) {
                         Debug.log("Friends: list changed during the online check, ignoring it");
                         return;
                     }
-                    applyOnline(online);
+                    applyOnline(pages.stream().flatMap(page -> page.friends().stream()).filter(Friend::online).toList());
                 })
                 .whenComplete((done, error) -> {
                     if (error != null) {
@@ -188,18 +189,6 @@ public class FriendsManager {
         return checkingOnline != null && !checkingOnline.isDone();
     }
 
-    /** Fetches pages until one lists an offline friend, which ends the online part of the list. */
-    private static CompletableFuture<List<Friend>> fetchOnline(int number, List<Friend> online) {
-        return fetchPage(number).thenCompose(page -> {
-            page.friends().stream().filter(Friend::online).forEach(online::add);
-
-            boolean allOnline = page.friends().stream().allMatch(Friend::online);
-            return allOnline && page.number() < page.total()
-                    ? fetchOnline(number + 1, online)
-                    : CompletableFuture.completedFuture(online);
-        });
-    }
-
     private void applyOnline(List<Friend> online) {
         Map<String, Friend> byName = new HashMap<>();
         for (Friend friend : online) {
@@ -210,7 +199,7 @@ public class FriendsManager {
                 .map(friend -> {
                     Friend listed = byName.get(friend.name().toLowerCase(Locale.ROOT));
                     if (listed != null) return new Friend(friend.name(), true, listed.status());
-                    // Online here but not on the online pages, so a leave message was missed
+                    // Online here but not listed online, so a leave message was missed
                     return friend.online() ? new Friend(friend.name(), false, OFFLINE) : friend;
                 })
                 .toList();
@@ -249,7 +238,6 @@ public class FriendsManager {
             return;
         }
 
-        // A notification does not say where they went, so this is all the status there is until a load
         String status = online ? ONLINE : OFFLINE;
         friends = friends.stream()
                 .map(friend -> friend.name().equalsIgnoreCase(name) ? new Friend(friend.name(), online, status) : friend)
@@ -280,14 +268,24 @@ public class FriendsManager {
         return friends.stream().anyMatch(friend -> friend.name().equalsIgnoreCase(name));
     }
 
-    private void persist() {
+    private void onCubeJoin() {
+        joinedAt = System.currentTimeMillis();
+
         UUID account = account();
         if (account != null) {
-            save(account, friends);
+            // Last session's names until the join load replaces them
+            friends = loadSaved(account).stream().map(name -> new Friend(name, false, "")).toList();
         }
-    }
 
-    private record Saved(long savedAt, List<String> names) {
+        Minecraft client = Minecraft.getInstance();
+        CompletableFuture.delayedExecutor(JOIN_DELAY_MS, TimeUnit.MILLISECONDS, client::execute)
+                .execute(() -> refresh().whenComplete((loaded, error) -> {
+                    if (error != null) {
+                        Debug.log("Friends: loading on join failed: {}", failureReason(error));
+                    } else {
+                        Debug.log("Friends: loaded {} friends on join", loaded.size());
+                    }
+                }));
     }
 
     private static List<String> loadSaved(UUID account) {
@@ -303,7 +301,10 @@ public class FriendsManager {
         }
     }
 
-    private static void save(UUID account, List<Friend> friends) {
+    private void persist() {
+        UUID account = account();
+        if (account == null) return;
+
         Path path = ModPaths.friends(account);
         Saved saved = new Saved(System.currentTimeMillis(), friends.stream().map(Friend::name).toList());
         try {
@@ -321,54 +322,25 @@ public class FriendsManager {
         return client.player == null ? null : client.player.getUUID();
     }
 
-    private void onCubeJoin() {
-        joinedAt = System.currentTimeMillis();
-
-        UUID account = account();
-        if (account != null) {
-            // Known names until the load below replaces them; last session's status would be stale
-            friends = loadSaved(account).stream().map(name -> new Friend(name, false, "")).toList();
-        }
-
-        Minecraft client = Minecraft.getInstance();
-        CompletableFuture.delayedExecutor(JOIN_DELAY_MS, TimeUnit.MILLISECONDS, client::execute)
-                .execute(() -> refresh().whenComplete((loaded, error) -> {
-                    if (error != null) {
-                        Debug.log("Friends: loading on join failed: {}", error.getMessage());
-                    } else {
-                        Debug.log("Friends: loaded {} friends on join", loaded.size());
-                    }
-                }));
+    /** Fetches pages from 1, one at a time, until the last page or one {@code more} rejects. */
+    private static CompletableFuture<List<Page>> fetchPages(Predicate<Page> more) {
+        return fetchPagesFrom(1, new ArrayList<>(), more);
     }
 
-    /** Fetches every page, hidden from chat. */
-    private CompletableFuture<List<Page>> fetchPages() {
-        if (!CubeCraftManager.getInstance().isOnCubeCraft()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Not on CubeCraft"));
-        }
-
-        return fetchPage(1).thenCompose(first -> {
-            List<CompletableFuture<ChatQueryManager.Reply>> replies = IntStream.rangeClosed(2, first.total())
-                    .mapToObj(FriendsManager::query)
-                    .toList();
-            List<CompletableFuture<Page>> pages = IntStream.range(0, replies.size())
-                    .mapToObj(index -> replies.get(index).thenApply(reply -> parsePage(reply, index + 2)))
-                    .toList();
-
-            // One page failing dooms the load, so stop sending the rest rather than run them for nothing
-            CompletableFuture<List<Page>> result = new CompletableFuture<>();
-            pages.forEach(page -> page.whenComplete((value, error) -> {
-                if (error == null) return;
-
-                result.completeExceptionally(error);
-                replies.forEach(reply -> reply.cancel(false));
-            }));
-
-            CompletableFuture.allOf(pages.toArray(CompletableFuture[]::new))
-                    .thenApply(done -> Stream.concat(Stream.of(first), pages.stream().map(CompletableFuture::join)).toList())
-                    .thenAccept(result::complete);
-            return result;
+    private static CompletableFuture<List<Page>> fetchPagesFrom(int number, List<Page> pages, Predicate<Page> more) {
+        return fetchPage(number).thenCompose(page -> {
+            pages.add(page);
+            return page.number() < page.total() && more.test(page)
+                    ? fetchPagesFrom(number + 1, pages, more)
+                    : CompletableFuture.completedFuture(pages);
         });
+    }
+
+    private static CompletableFuture<Page> fetchPage(int number) {
+        String command = number == 1 ? "friend list" : "friend list " + number;
+        return ChatQueryManager.getInstance()
+                .send(command, HEADER, LINE, true)
+                .thenApply(reply -> parsePage(reply, number));
     }
 
     /** Merges pages by name, since a friend coming online mid-walk can land on two pages. */
@@ -382,16 +354,7 @@ public class FriendsManager {
         return List.copyOf(byName.values());
     }
 
-    private static CompletableFuture<Page> fetchPage(int number) {
-        return query(number).thenApply(reply -> parsePage(reply, number));
-    }
-
-    private static CompletableFuture<ChatQueryManager.Reply> query(int number) {
-        String command = number == 1 ? "friend list" : "friend list " + number;
-        return ChatQueryManager.getInstance().send(command, HEADER, LINE, true);
-    }
-
-    /** A reply the query manager gave up on can be read as the next page's, so the header has to agree. */
+    /** A late reply to another page can be claimed as this one, so the header has to agree. */
     private static Page parsePage(ChatQueryManager.Reply reply, int expected) {
         Matcher counter = PAGE.matcher(reply.header().getString());
         boolean paged = counter.find();
@@ -401,7 +364,7 @@ public class FriendsManager {
         if (number != expected) {
             throw new IllegalStateException("Asked for friends page " + expected + ", got " + number);
         }
-        // Only the last page can be short, so a short earlier page means a line did not match and would be lost
+        // Only the last page may be short, so a short earlier one lost a line that did not match
         if (number < total && reply.lines().size() != LINES_PER_PAGE) {
             throw new IllegalStateException("Friends page " + number + " had " + reply.lines().size()
                     + " lines, expected " + LINES_PER_PAGE);
