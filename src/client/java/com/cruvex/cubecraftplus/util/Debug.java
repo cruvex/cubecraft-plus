@@ -1,6 +1,7 @@
 package com.cruvex.cubecraftplus.util;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.slf4j.helpers.MessageFormatter;
@@ -12,7 +13,7 @@ import org.slf4j.helpers.MessageFormatter;
  */
 public class Debug {
 
-    private static boolean enabled = false;
+    private static boolean enabled = FabricLoader.getInstance().isDevelopmentEnvironment();;
 
     private Debug() {
     }
