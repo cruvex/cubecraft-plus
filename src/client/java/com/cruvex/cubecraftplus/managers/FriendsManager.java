@@ -144,7 +144,7 @@ public class FriendsManager {
         }
 
         int messagesBefore = friendMessages;
-        return fetchPages(page -> true).thenCompose(pages -> {
+        return fetchPages(page -> true, this::show).thenCompose(pages -> {
             List<Friend> loaded = merge(pages);
             friends = loaded;
 
@@ -165,20 +165,26 @@ public class FriendsManager {
         });
     }
 
+    /** Applies the online friends a walk has already listed, without waiting for the rest of it. */
+    private void show(List<Page> walked) {
+        if (allOnline(walked.getLast())) return;
+
+        applyOnline(online(walked));
+    }
+
     /** Re-reads where online friends are, which join and leave messages do not say. */
     public void checkOnline() {
         if (isRefreshing() || isCheckingOnline() || System.currentTimeMillis() - joinedAt < JOIN_DELAY_MS) return;
         if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
         int messagesBefore = friendMessages;
-        // Online friends are listed first, so the first page with anyone offline is the last one needed
-        checkingOnline = fetchPages(page -> page.friends().stream().allMatch(Friend::online))
+        checkingOnline = fetchPages(FriendsManager::allOnline)
                 .thenAccept(pages -> {
                     if (friendMessages != messagesBefore) {
                         Debug.log("Friends: list changed during the online check, ignoring it");
                         return;
                     }
-                    applyOnline(pages.stream().flatMap(page -> page.friends().stream()).filter(Friend::online).toList());
+                    applyOnline(online(pages));
                 })
                 .whenComplete((done, error) -> {
                     if (error != null) {
@@ -205,11 +211,11 @@ public class FriendsManager {
                     return friend.online() ? new Friend(friend.name(), false, OFFLINE) : friend;
                 })
                 .toList();
-        Debug.log("Friends: checked {} online friends", online.size());
 
         // A new list rebuilds an open screen's rows, so only replace it when something changed
         if (!updated.equals(friends)) {
             friends = updated;
+            Debug.log("Friends: {} friends online", online.size());
         }
     }
 
@@ -324,16 +330,22 @@ public class FriendsManager {
         return client.player == null ? null : client.player.getUUID();
     }
 
-    /** Fetches pages from 1, one at a time, until the last page or one {@code more} rejects. */
     private static CompletableFuture<List<Page>> fetchPages(Predicate<Page> more) {
-        return fetchPagesFrom(1, new ArrayList<>(), more);
+        return fetchPages(more, pages -> {});
     }
 
-    private static CompletableFuture<List<Page>> fetchPagesFrom(int number, List<Page> pages, Predicate<Page> more) {
+    /** Fetches pages from 1 until the last, or one {@code more} rejects; {@code each} sees the pages so far. */
+    private static CompletableFuture<List<Page>> fetchPages(Predicate<Page> more, Consumer<List<Page>> each) {
+        return fetchPagesFrom(1, new ArrayList<>(), more, each);
+    }
+
+    private static CompletableFuture<List<Page>> fetchPagesFrom(int number, List<Page> pages, Predicate<Page> more,
+                                                               Consumer<List<Page>> each) {
         return fetchPage(number).thenCompose(page -> {
             pages.add(page);
+            each.accept(pages);
             return page.number() < page.total() && more.test(page)
-                    ? fetchPagesFrom(number + 1, pages, more)
+                    ? fetchPagesFrom(number + 1, pages, more, each)
                     : CompletableFuture.completedFuture(pages);
         });
     }
@@ -343,6 +355,15 @@ public class FriendsManager {
         return ChatQueryManager.getInstance()
                 .send(command, HEADER, LINE, true)
                 .thenApply(reply -> parsePage(reply, number));
+    }
+
+    /** Online friends are listed first, so a page with anyone offline is the last one holding any. */
+    private static boolean allOnline(Page page) {
+        return page.friends().stream().allMatch(Friend::online);
+    }
+
+    private static List<Friend> online(List<Page> pages) {
+        return pages.stream().flatMap(page -> page.friends().stream()).filter(Friend::online).toList();
     }
 
     /** Merges pages by name, since a friend coming online mid-walk can land on two pages. */
