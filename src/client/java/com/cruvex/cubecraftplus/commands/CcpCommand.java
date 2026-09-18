@@ -21,7 +21,8 @@ public final class CcpCommand {
                 .then(ChestFinderCommand.node())
                 .then(ProbeCommand.node())
                 .then(QueryCommand.node())
-                .then(FriendsCommand.node());
+                .then(FriendsCommand.node())
+                .then(VersionCommand.node());
     }
 
     private CcpCommand() {
