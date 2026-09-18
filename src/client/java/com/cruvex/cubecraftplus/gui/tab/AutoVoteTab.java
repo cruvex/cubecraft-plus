@@ -2,11 +2,12 @@ package com.cruvex.cubecraftplus.gui.tab;
 
 import com.cruvex.cubecraftplus.autovote.AutoVoteCategory;
 import com.cruvex.cubecraftplus.autovote.AutoVoteCategoryOption;
+import com.cruvex.cubecraftplus.autovote.AutoVoteConfigs;
 import com.cruvex.cubecraftplus.autovote.AutoVoteConfiguration;
 import com.cruvex.cubecraftplus.autovote.GameVotes;
 import com.cruvex.cubecraftplus.config.ModConfig;
-import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.game.Game;
+import com.cruvex.cubecraftplus.game.GameRegistry;
 import com.cruvex.cubecraftplus.gui.screen.ConfigScreen;
 import com.cruvex.cubecraftplus.gui.widget.DropdownWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -88,7 +89,7 @@ public class AutoVoteTab extends ConfigTab {
 
     private static List<AutoVoteConfiguration> supportedConfigurations() {
         List<AutoVoteConfiguration> configurations = new ArrayList<>();
-        for (AutoVoteConfiguration configuration : CubepanionAPI.getInstance().getAutoVoteConfigurations()) {
+        for (AutoVoteConfiguration configuration : AutoVoteConfigs.getInstance().all()) {
             if (isConfigurable(configuration)) {
                 configurations.add(configuration);
             }
@@ -100,7 +101,7 @@ public class AutoVoteTab extends ConfigTab {
 
     private static boolean isConfigurable(AutoVoteConfiguration configuration) {
         // Retired games can't be joined; null (games not loaded) shows them rather than nothing
-        Game game = CubepanionAPI.getInstance().getGameById(configuration.gameId());
+        Game game = GameRegistry.getInstance().byId(configuration.gameId());
         return game == null || game.active();
     }
 
