@@ -1,7 +1,6 @@
 package com.cruvex.cubecraftplus.autovote;
 
 import com.cruvex.cubecraftplus.config.ModConfig;
-import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.game.Game;
 import org.jetbrains.annotations.Nullable;
 
@@ -27,12 +26,12 @@ public final class GameVotes {
 
     /** Runs every tick while idle, so it stays a lookup and builds no vote list. */
     public static int hotbarSlotFor(@Nullable Game game) {
-        AutoVoteConfiguration configuration = configurationFor(game);
+        AutoVoteConfiguration configuration = AutoVoteConfigs.getInstance().find(game);
         return configuration == null ? -1 : configuration.hotbarSlot();
     }
 
     public static List<VotePair> forGame(@Nullable Game game, ModConfig.AutoVoteConfig config) {
-        AutoVoteConfiguration configuration = configurationFor(game);
+        AutoVoteConfiguration configuration = AutoVoteConfigs.getInstance().find(game);
         if (configuration == null) {
             return List.of();
         }
@@ -52,19 +51,6 @@ public final class GameVotes {
     public static int slotFor(ModConfig.AutoVoteConfig config, AutoVoteCategory category) {
         Integer saved = config.slots.get(category.id());
         return saved != null ? saved : category.defaultSlot();
-    }
-
-    public static @Nullable AutoVoteConfiguration configurationFor(@Nullable Game game) {
-        if (game == null) {
-            return null;
-        }
-
-        for (AutoVoteConfiguration configuration : CubepanionAPI.getInstance().getAutoVoteConfigurations()) {
-            if (configuration.gameId() == game.id()) {
-                return configuration;
-            }
-        }
-        return null;
     }
 
     private GameVotes() {}

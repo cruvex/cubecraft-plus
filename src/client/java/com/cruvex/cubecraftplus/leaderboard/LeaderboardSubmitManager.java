@@ -6,6 +6,7 @@ import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.debug.Debug;
 import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.Game;
+import com.cruvex.cubecraftplus.game.GameRegistry;
 import com.mojang.authlib.properties.Property;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -50,6 +51,8 @@ public class LeaderboardSubmitManager {
     private static final Pattern PAGE_PATTERN = Pattern.compile(".*\\((\\d+)/\\d+\\)");
     private static final Pattern PLAYER_NAME_PATTERN = Pattern.compile("[a-zA-Z0-9_]{2,16}");
 
+    private volatile LeaderboardConfiguration configuration = LeaderboardConfiguration.DISABLED;
+
     private final Set<Integer> pages = new HashSet<>();
     private final Set<LeaderboardRow> rows = new LinkedHashSet<>();
     private Game game;
@@ -72,10 +75,28 @@ public class LeaderboardSubmitManager {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset("disconnected"));
     }
 
+    public void loadConfiguration() {
+        CubepanionAPI.getInstance().fetchLeaderboardConfiguration()
+                .thenAccept(config -> {
+                    if (config == null) {
+                        LOGGER.warn("Leaderboard configuration request came back empty, leaderboard submitting stays off");
+                        return;
+                    }
+
+                    this.configuration = config;
+                    LOGGER.info("Loaded leaderboard configuration: enabled={}, {} places over {} pages",
+                            config.enabled(), config.playerCount(), config.pageCount());
+                })
+                .exceptionally(ex -> {
+                    LOGGER.error("Failed to load leaderboard configuration, leaderboard submitting stays off", ex);
+                    return null;
+                });
+    }
+
     private void onEndTick(Minecraft client) {
         if (client.player == null || !CubeCraftManager.getInstance().isOnCubeCraft()) return;
         if (!ConfigManager.getInstance().getConfig().leaderboardSubmit.enabled) return;
-        if (!CubepanionAPI.getInstance().getLeaderboardConfiguration().canSubmit()) return;
+        if (!configuration.canSubmit()) return;
 
         // Forget the menu once it closes, so a reused container id isn't taken for a parsed one
         if (!(client.gui.screen() instanceof ContainerScreen screen)) {
@@ -117,7 +138,7 @@ public class LeaderboardSubmitManager {
         if (marker <= 0) return;
 
         String gameName = cleaned.substring(0, marker).trim();
-        Game pageGame = CubepanionAPI.getInstance().tryGame(gameName);
+        Game pageGame = GameRegistry.getInstance().find(gameName);
         if (pageGame == null) {
             Debug.log("Leaderboard: no game matches '{}'", gameName);
             return;
@@ -145,7 +166,7 @@ public class LeaderboardSubmitManager {
 
         if (!pages.add(page)) return;
 
-        LeaderboardConfiguration layout = CubepanionAPI.getInstance().getLeaderboardConfiguration();
+        LeaderboardConfiguration layout = configuration;
         for (ItemStack head : heads) {
             LeaderboardRow row = parseRow(head, layout.playerCount());
             if (row != null) rows.add(row);

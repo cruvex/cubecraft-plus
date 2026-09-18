@@ -1,7 +1,6 @@
 package com.cruvex.cubecraftplus.cubesocket;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
-import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.cubesocket.protocol.PacketHandler;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketDisconnect;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketHelloPong;
@@ -88,7 +87,6 @@ public class CubeSocketSession extends PacketHandler {
         }
 
         CubeSocketEvents.SOCKET_RELOAD_REQUEST.invoker().onReloadRequested();
-        CubepanionAPI.getInstance().loadInitialData();
         this.lastReload = now;
     }
 }

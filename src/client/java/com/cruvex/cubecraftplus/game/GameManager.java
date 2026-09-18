@@ -1,6 +1,5 @@
 package com.cruvex.cubecraftplus.game;
 
-import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.debug.Debug;
 import com.cruvex.cubecraftplus.events.PlayerEvents;
 import com.cruvex.cubecraftplus.events.ScoreboardEvents;
@@ -344,7 +343,7 @@ public class GameManager {
             return null;
         }
 
-        Game game = CubepanionAPI.getInstance().tryGame(cleaned);
+        Game game = GameRegistry.getInstance().find(cleaned);
         if (game == null) {
             Debug.log("No game matches sidebar title: {}", cleaned);
         }
