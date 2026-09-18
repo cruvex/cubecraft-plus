@@ -1,8 +1,8 @@
 package com.cruvex.cubecraftplus.mixins;
 
-import com.cruvex.cubecraftplus.managers.AutoVoteManager;
-import com.cruvex.cubecraftplus.managers.RemoteMenu;
-import com.cruvex.cubecraftplus.util.Debug;
+import com.cruvex.cubecraftplus.autovote.AutoVoteManager;
+import com.cruvex.cubecraftplus.autovote.RemoteMenu;
+import com.cruvex.cubecraftplus.debug.Debug;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundContainerClosePacket;
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;

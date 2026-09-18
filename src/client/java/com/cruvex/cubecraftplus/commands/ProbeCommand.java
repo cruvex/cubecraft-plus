@@ -1,7 +1,7 @@
 package com.cruvex.cubecraftplus.commands;
 
+import com.cruvex.cubecraftplus.debug.SignalProbe;
 import com.cruvex.cubecraftplus.util.ModPaths;
-import com.cruvex.cubecraftplus.util.SignalProbe;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;

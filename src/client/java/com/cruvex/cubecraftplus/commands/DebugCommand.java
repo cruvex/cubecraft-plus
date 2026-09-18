@@ -1,6 +1,6 @@
 package com.cruvex.cubecraftplus.commands;
 
-import com.cruvex.cubecraftplus.util.Debug;
+import com.cruvex.cubecraftplus.debug.Debug;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;

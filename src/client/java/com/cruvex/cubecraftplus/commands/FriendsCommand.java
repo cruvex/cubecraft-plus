@@ -1,8 +1,8 @@
 package com.cruvex.cubecraftplus.commands;
 
+import com.cruvex.cubecraftplus.friends.Friend;
+import com.cruvex.cubecraftplus.friends.FriendsManager;
 import com.cruvex.cubecraftplus.gui.screen.FriendsScreen;
-import com.cruvex.cubecraftplus.managers.FriendsManager;
-import com.cruvex.cubecraftplus.model.Friend;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;

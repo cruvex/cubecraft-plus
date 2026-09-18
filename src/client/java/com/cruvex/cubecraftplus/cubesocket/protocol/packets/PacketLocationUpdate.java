@@ -2,7 +2,7 @@ package com.cruvex.cubecraftplus.cubesocket.protocol.packets;
 
 import com.cruvex.cubecraftplus.cubesocket.protocol.Packet;
 import com.cruvex.cubecraftplus.cubesocket.protocol.PacketBuffer;
-import com.cruvex.cubecraftplus.managers.CubeCraftManager;
+import com.cruvex.cubecraftplus.game.CubeCraftManager;
 
 public class PacketLocationUpdate extends Packet {
 
