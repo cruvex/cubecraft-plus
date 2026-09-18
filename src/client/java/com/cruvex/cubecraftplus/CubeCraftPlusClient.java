@@ -15,6 +15,7 @@ import com.cruvex.cubecraftplus.game.CubeEvents;
 import com.cruvex.cubecraftplus.game.GameManager;
 import com.cruvex.cubecraftplus.game.GameRegistry;
 import com.cruvex.cubecraftplus.leaderboard.LeaderboardSubmitManager;
+import com.cruvex.cubecraftplus.update.UpdateChecker;
 import net.fabricmc.api.ClientModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +49,7 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         AutoVoteManager.getInstance().init();
         LeaderboardSubmitManager.getInstance().init();
         CubeSocket.getInstance().init();
+        UpdateChecker.getInstance().init();
     }
 
     /** Every join rather than once at startup, since this data changes server-side. */
