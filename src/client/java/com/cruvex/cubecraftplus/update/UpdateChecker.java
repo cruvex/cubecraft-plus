@@ -26,9 +26,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
-/** Says in chat, once per launch, when GitHub has a newer release with a jar for this Minecraft version. */
+/** Compares this install with GitHub's latest release, and says in chat once per launch when there is a newer one. */
 public class UpdateChecker {
 
     private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
@@ -41,9 +42,16 @@ public class UpdateChecker {
     private static UpdateChecker instance;
 
     // All only touched on the client thread
-    private @Nullable Update update;
+    private @Nullable Result update;
     private boolean announced;
     private boolean joinDelayPassed;
+
+    /** {@code latest} and {@code installed} leave out the "+26.2" a release jar's version carries. */
+    public record Result(String latest, String installed, String minecraft, URI page, boolean newer, boolean forThisMinecraft) {
+        public boolean updateAvailable() {
+            return newer && forThisMinecraft;
+        }
+    }
 
     public static UpdateChecker getInstance() {
         if (instance == null) {
@@ -56,7 +64,59 @@ public class UpdateChecker {
         if (!ConfigManager.getInstance().getConfig().updateCheck.enabled) return;
 
         CubeEvents.CUBE_JOIN.register(this::onCubeJoin);
-        check();
+        fetchLatest()
+                .thenAccept(result -> {
+                    Debug.log("Update check: latest {}, running {}, jar for Minecraft {}: {}",
+                            result.latest(), result.installed(), result.minecraft(), result.forThisMinecraft());
+                    if (result.updateAvailable()) {
+                        Minecraft.getInstance().execute(() -> {
+                            update = result;
+                            announce();
+                        });
+                    }
+                })
+                .exceptionally(ex -> {
+                    LOGGER.warn("Update check failed: {}", failureReason(ex));
+                    return null;
+                });
+    }
+
+    public CompletableFuture<Result> fetchLatest() {
+        HttpRequest request = HttpRequest.newBuilder(LATEST_RELEASE)
+                .header("Accept", "application/vnd.github+json")
+                .header("User-Agent", "CubeCraftPlus-fabric-mod")
+                .GET()
+                .build();
+
+        return HttpClient.newHttpClient().sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    if (response.statusCode() != 200) {
+                        throw new IllegalStateException("GitHub returned " + response.statusCode());
+                    }
+                    return compare(GSON.fromJson(response.body(), Release.class));
+                });
+    }
+
+    private static Result compare(@Nullable Release release) {
+        if (release == null || release.tag() == null || release.page() == null) {
+            throw new IllegalStateException("GitHub returned no release");
+        }
+
+        String current = modVersion(CubeCraftPlusClient.MOD_ID);
+        String latest = release.tag().replaceFirst("^[vV]", "");
+        String minecraft = minecraftVersion();
+        boolean newer;
+        try {
+            // Ignores the "+26.2" a release jar's version carries
+            Version latestVersion = SemanticVersion.parse(latest);
+            newer = latestVersion.compareTo(SemanticVersion.parse(current)) > 0;
+        } catch (VersionParsingException e) {
+            throw new IllegalStateException("Could not compare " + latest + " with " + current, e);
+        }
+
+        boolean forThisMinecraft = release.assets() != null && release.assets().stream()
+                .anyMatch(asset -> asset.name() != null && asset.name().endsWith("+" + minecraft + ".jar"));
+        return new Result(latest, installedVersion(), minecraft, URI.create(release.page()), newer, forThisMinecraft);
     }
 
     private void onCubeJoin() {
@@ -68,66 +128,36 @@ public class UpdateChecker {
                 });
     }
 
-    private void check() {
-        HttpRequest request = HttpRequest.newBuilder(LATEST_RELEASE)
-                .header("Accept", "application/vnd.github+json")
-                .header("User-Agent", "CubeCraftPlus-fabric-mod")
-                .GET()
-                .build();
-
-        HttpClient.newHttpClient().sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenAccept(response -> {
-                    if (response.statusCode() != 200) {
-                        LOGGER.warn("Update check: GitHub returned {}", response.statusCode());
-                        return;
-                    }
-                    compare(GSON.fromJson(response.body(), Release.class));
-                })
-                .exceptionally(ex -> {
-                    LOGGER.warn("Update check failed: {}", ex.getMessage());
-                    return null;
-                });
-    }
-
-    private void compare(@Nullable Release release) {
-        if (release == null || release.tag() == null || release.page() == null) return;
-
-        String current = modVersion(CubeCraftPlusClient.MOD_ID);
-        String latest = release.tag().replaceFirst("^[vV]", "");
-        String minecraft = modVersion("minecraft");
-        try {
-            // Ignores the "+26.2" a release jar's version carries
-            Version latestVersion = SemanticVersion.parse(latest);
-            boolean newer = latestVersion.compareTo(SemanticVersion.parse(current)) > 0;
-            boolean forThisMinecraft = release.assets() != null && release.assets().stream()
-                    .anyMatch(asset -> asset.name() != null && asset.name().endsWith("+" + minecraft + ".jar"));
-            Debug.log("Update check: latest {}, running {}, jar for Minecraft {}: {}", latest, current, minecraft, forThisMinecraft);
-
-            if (newer && forThisMinecraft) {
-                Update found = new Update(latest, current.split("\\+")[0], URI.create(release.page()));
-                Minecraft.getInstance().execute(() -> {
-                    update = found;
-                    announce();
-                });
-            }
-        } catch (VersionParsingException | IllegalArgumentException e) {
-            LOGGER.warn("Update check could not compare {} with {}: {}", latest, current, e.getMessage());
-        }
-    }
-
     private void announce() {
-        Update found = update;
+        Result found = update;
         if (found == null || announced || !joinDelayPassed || !CubeCraftManager.getInstance().isOnCubeCraft()) return;
         if (!ConfigManager.getInstance().getConfig().updateCheck.enabled) return;
-        announced = true;
 
+        announced = true;
+        Chat.send(availableMessage(found));
+    }
+
+    public static Component availableMessage(Result result) {
         Component download = Component.translatable("cubecraftplus.update.download")
                 .withStyle(style -> style.withColor(ChatFormatting.AQUA)
                         .withUnderlined(true)
-                        .withClickEvent(new ClickEvent.OpenUrl(found.page()))
+                        .withClickEvent(new ClickEvent.OpenUrl(result.page()))
                         .withHoverEvent(new HoverEvent.ShowText(Component.translatable("cubecraftplus.update.download.tooltip"))));
-        Chat.send(Component.translatable("cubecraftplus.update.available", found.latest(), found.current(), download)
-                .withStyle(ChatFormatting.GREEN));
+        return Component.translatable("cubecraftplus.update.available", result.latest(), result.installed(), download)
+                .withStyle(ChatFormatting.GREEN);
+    }
+
+    public static String installedVersion() {
+        return modVersion(CubeCraftPlusClient.MOD_ID).split("\\+")[0];
+    }
+
+    public static String minecraftVersion() {
+        return modVersion("minecraft");
+    }
+
+    public static String failureReason(Throwable error) {
+        Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
+        return cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
     }
 
     private static String modVersion(String id) {
@@ -135,8 +165,6 @@ public class UpdateChecker {
                 .map(container -> container.getMetadata().getVersion().getFriendlyString())
                 .orElse("unknown");
     }
-
-    private record Update(String latest, String current, URI page) {}
 
     private record Release(@SerializedName("tag_name") String tag, @SerializedName("html_url") String page, List<Asset> assets) {}
 
