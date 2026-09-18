@@ -11,6 +11,12 @@ public class ModConfig {
 
     public ChestFinderConfig chestFinder = new ChestFinderConfig();
 
+    public UpdateCheckConfig updateCheck = new UpdateCheckConfig();
+
+    public static class UpdateCheckConfig {
+        public boolean enabled = true;
+    }
+
     public static class LeaderboardSubmitConfig {
         public boolean enabled = true;
     }
@@ -35,6 +41,7 @@ public class ModConfig {
     public void validate() {
         if (leaderboardSubmit == null) leaderboardSubmit = new LeaderboardSubmitConfig();
         if (chestFinder == null) chestFinder = new ChestFinderConfig();
+        if (updateCheck == null) updateCheck = new UpdateCheckConfig();
 
         if (autoVote == null) autoVote = new AutoVoteConfig();
         if (autoVote.slots == null) autoVote.slots = new HashMap<>();
