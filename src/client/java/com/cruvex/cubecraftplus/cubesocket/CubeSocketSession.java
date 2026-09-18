@@ -1,6 +1,7 @@
 package com.cruvex.cubecraftplus.cubesocket;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
+import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.cubesocket.protocol.PacketHandler;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketDisconnect;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketHelloPong;
@@ -11,8 +12,6 @@ import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketPing;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketPong;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketReload;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketSetProtocol;
-import com.cruvex.cubecraftplus.events.CubeSocketEvents;
-import com.cruvex.cubecraftplus.external.CubepanionAPI;
 import io.netty.channel.ChannelHandlerContext;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;

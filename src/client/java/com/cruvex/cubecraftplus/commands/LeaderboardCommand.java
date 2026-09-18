@@ -1,12 +1,12 @@
 package com.cruvex.cubecraftplus.commands;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
-import com.cruvex.cubecraftplus.external.CubepanionAPI;
-import com.cruvex.cubecraftplus.managers.GameManager;
-import com.cruvex.cubecraftplus.model.Game;
-import com.cruvex.cubecraftplus.model.Leaderboard;
-import com.cruvex.cubecraftplus.model.LeaderboardRow;
-import com.cruvex.cubecraftplus.model.PlayerLeaderboard;
+import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
+import com.cruvex.cubecraftplus.game.Game;
+import com.cruvex.cubecraftplus.game.GameManager;
+import com.cruvex.cubecraftplus.leaderboard.Leaderboard;
+import com.cruvex.cubecraftplus.leaderboard.LeaderboardRow;
+import com.cruvex.cubecraftplus.leaderboard.PlayerLeaderboard;
 import com.cruvex.cubecraftplus.util.Util;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;

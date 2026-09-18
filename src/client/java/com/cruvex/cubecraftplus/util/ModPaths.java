@@ -46,7 +46,7 @@ public final class ModPaths {
         return ROOT.resolve("cache").resolve(name + ".json");
     }
 
-    /** Diagnostics, e.g. the {@link SignalProbe} logs. Safe to delete. */
+    /** Diagnostics, e.g. the {@link com.cruvex.cubecraftplus.debug.SignalProbe} logs. Safe to delete. */
     public static Path debug(String name) {
         return ROOT.resolve("debug").resolve(name);
     }

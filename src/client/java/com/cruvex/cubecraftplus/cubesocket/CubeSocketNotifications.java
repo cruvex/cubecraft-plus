@@ -1,6 +1,5 @@
 package com.cruvex.cubecraftplus.cubesocket;
 
-import com.cruvex.cubecraftplus.events.CubeSocketEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.network.chat.Component;

@@ -3,7 +3,7 @@ package com.cruvex.cubecraftplus.cubesocket.pipeline;
 import com.cruvex.cubecraftplus.cubesocket.CubeSocket;
 import com.cruvex.cubecraftplus.cubesocket.protocol.Packet;
 import com.cruvex.cubecraftplus.cubesocket.protocol.PacketBuffer;
-import com.cruvex.cubecraftplus.util.Debug;
+import com.cruvex.cubecraftplus.debug.Debug;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;

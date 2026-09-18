@@ -1,12 +1,12 @@
 package com.cruvex.cubecraftplus.gui.screen;
 
+import com.cruvex.cubecraftplus.chat.Chat;
+import com.cruvex.cubecraftplus.config.ConfigManager;
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.gui.tab.AutoVoteTab;
 import com.cruvex.cubecraftplus.gui.tab.GeneralTab;
 import com.cruvex.cubecraftplus.gui.tab.LeaderboardTab;
 import com.cruvex.cubecraftplus.gui.widget.DropdownWidget;
-import com.cruvex.cubecraftplus.managers.ConfigManager;
-import com.cruvex.cubecraftplus.util.Chat;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
