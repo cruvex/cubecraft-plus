@@ -4,6 +4,7 @@ import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.game.Game;
 import com.cruvex.cubecraftplus.game.GameManager;
+import com.cruvex.cubecraftplus.game.GameRegistry;
 import com.cruvex.cubecraftplus.leaderboard.Leaderboard;
 import com.cruvex.cubecraftplus.leaderboard.LeaderboardRow;
 import com.cruvex.cubecraftplus.leaderboard.PlayerLeaderboard;
@@ -73,7 +74,7 @@ public class LeaderboardCommand {
     }
 
     private static CompletableFuture<Suggestions> suggestGameNames(CommandContext<FabricClientCommandSource> ctx, SuggestionsBuilder builder) {
-        for (Game game : CubepanionAPI.getInstance().getAllGames()) {
+        for (Game game : GameRegistry.getInstance().all()) {
             builder.suggest(game.name());
         }
         return builder.buildFuture();
@@ -142,7 +143,7 @@ public class LeaderboardCommand {
 
     private static int executeGame(CommandContext<FabricClientCommandSource> ctx, int start) {
         String name = StringArgumentType.getString(ctx, "game");
-        Game game = CubepanionAPI.getInstance().tryGame(name);
+        Game game = GameRegistry.getInstance().find(name);
         if (game == null) {
             ctx.getSource().sendError(Component.literal("Unknown game: " + name));
             return 1;
@@ -183,7 +184,7 @@ public class LeaderboardCommand {
             .append(Component.literal(":"));
 
         lb.leaderboards().forEach(row -> {
-            var game = CubepanionAPI.getInstance().getGameById(row.gameId());
+            var game = GameRegistry.getInstance().byId(row.gameId());
             String gameName = game == null ? "Unknown" : game.displayName();
             String scoreType = game == null ? "Unknown" : game.scoreType();
 

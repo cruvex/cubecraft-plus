@@ -1,5 +1,6 @@
 package com.cruvex.cubecraftplus.chestfinder;
 
+import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.chat.Chat;
 import com.cruvex.cubecraftplus.config.ConfigManager;
 import com.cruvex.cubecraftplus.config.ModConfig;
@@ -19,11 +20,14 @@ import net.minecraft.gizmos.Gizmos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Optional;
 
 public class ChestFinderManager {
+    private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
+
     final String chestMessage = "A chest has been hidden somewhere in the lobby with some goodies inside!";
 
     private static final int POLL_INTERVAL_TICKS = 20;
@@ -35,6 +39,9 @@ public class ChestFinderManager {
     private int searchTicksLeft = 0;
     private boolean reportNotFound;
     private BlockPos foundChest;
+
+    // Swapped rather than mutated on reload: the client thread reads this while an HTTP thread writes
+    private volatile List<ChestLocation> locations = List.of();
 
     static ChestFinderManager instance;
 
@@ -55,6 +62,27 @@ public class ChestFinderManager {
             searchTicksLeft = 0;
             foundChest = null;
         });
+    }
+
+    public void loadLocations() {
+        CubepanionAPI.getInstance().fetchChestLocations()
+                .thenAccept(fetched -> {
+                    if (fetched == null || fetched.isEmpty()) {
+                        LOGGER.warn("Chest locations came back empty, keeping the {} locations already loaded",
+                                locations.size());
+                        return;
+                    }
+
+                    locations = List.copyOf(fetched);
+                    // The endpoint only serves the active season, so every entry shares it
+                    String season = fetched.getFirst().seasonName();
+                    Debug.info("Loaded {} chest locations for season {}", fetched.size(), season);
+                })
+                .exceptionally(ex -> {
+                    LOGGER.error("Failed to load chest locations, keeping the {} locations already loaded",
+                            locations.size(), ex);
+                    return null;
+                });
     }
 
     private void onMessage(Component message) {
@@ -141,7 +169,7 @@ public class ChestFinderManager {
     }
 
     private Optional<ChestLocation> findLobbyChest() {
-        List<ChestLocation> locations = CubepanionAPI.getInstance().getChestLocations();
+        List<ChestLocation> locations = this.locations;
         ClientLevel level = Minecraft.getInstance().level;
 
         if (level == null) {

@@ -1,10 +1,10 @@
 package com.cruvex.cubecraftplus.debug;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
-import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.game.CubeEvents;
 import com.cruvex.cubecraftplus.game.Game;
 import com.cruvex.cubecraftplus.game.GameManager;
+import com.cruvex.cubecraftplus.game.GameRegistry;
 import com.cruvex.cubecraftplus.util.Util;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -468,7 +468,7 @@ public class SignalProbe {
         String cleaned = title.replaceAll("[^a-zA-Z .]", "").trim();
         if (cleaned.isEmpty()) return "none";
 
-        Game game = CubepanionAPI.getInstance().tryGame(cleaned);
+        Game game = GameRegistry.getInstance().find(cleaned);
         return game == null ? "none" : game.name();
     }
 

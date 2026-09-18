@@ -1,9 +1,7 @@
 package com.cruvex.cubecraftplus.cubepanion;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
-import com.cruvex.cubecraftplus.autovote.AutoVoteConfiguration;
 import com.cruvex.cubecraftplus.debug.Debug;
-import com.cruvex.cubecraftplus.game.Game;
 import com.cruvex.cubecraftplus.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -19,22 +17,14 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
-/**
- * Last known good copies of the fetched data, so a launch with GitHub or the API unreachable
- * still has vote definitions and game ids at tick 0. One file per dataset; reads hit disk.
- */
+/** Offline copies of fetched data: the last good fetch on disk, and the copy bundled in the jar. */
 public class ApiCache {
 
     private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
-    private static final String AUTO_VOTE = "auto_vote";
-    private static final String GAMES = "games";
-
-    private static final TypeToken<List<AutoVoteConfiguration>> AUTO_VOTE_TOKEN = new TypeToken<>() {};
-    private static final TypeToken<List<Game>> GAMES_TOKEN = new TypeToken<>() {};
 
     private static ApiCache instance;
 
@@ -50,25 +40,7 @@ public class ApiCache {
         return instance;
     }
 
-    /** Version checked: the copy bundled in a new release can be newer than the cache. */
-    public List<AutoVoteConfiguration> getAutoVoteConfigurations() {
-        return read(AUTO_VOTE, AUTO_VOTE_TOKEN, true);
-    }
-
-    /** Not version checked: there is no bundled copy to be newer than the cache. */
-    public List<Game> getGames() {
-        return read(GAMES, GAMES_TOKEN, false);
-    }
-
-    public void putAutoVoteConfigurations(List<AutoVoteConfiguration> configurations) {
-        write(AUTO_VOTE, configurations);
-    }
-
-    public void putGames(List<Game> games) {
-        write(GAMES, games);
-    }
-
-    private <T> List<T> read(String name, TypeToken<List<T>> token, boolean requireCurrentVersion) {
+    public <T> List<T> read(String name, TypeToken<List<T>> token, boolean requireCurrentVersion) {
         Path path = ModPaths.cache(name);
         if (!Files.exists(path)) {
             return List.of();
@@ -105,7 +77,7 @@ public class ApiCache {
         }
     }
 
-    private <T> void write(String name, List<T> value) {
+    public <T> void write(String name, List<T> value) {
         // Cached garbage would be stickier than no cache at all
         if (value == null || value.isEmpty()) {
             return;
@@ -124,6 +96,24 @@ public class ApiCache {
             Debug.log("Saved {} entries to cache {}", value.size(), ModPaths.display(path));
         } catch (IOException e) {
             LOGGER.warn("Failed to save cache to {}", ModPaths.display(path), e);
+        }
+    }
+
+    public <T> List<T> readBundled(String resource, TypeToken<List<T>> type) {
+        Optional<Path> path = FabricLoader.getInstance()
+                .getModContainer(CubeCraftPlusClient.MOD_ID)
+                .flatMap(container -> container.findPath(resource));
+        if (path.isEmpty()) {
+            LOGGER.warn("Bundled {} is missing from the mod jar", resource);
+            return List.of();
+        }
+
+        try (Reader reader = Files.newBufferedReader(path.get())) {
+            List<T> value = GSON.fromJson(reader, type);
+            return value == null ? List.of() : value;
+        } catch (IOException | JsonParseException e) {
+            LOGGER.warn("Failed to read bundled {}", resource, e);
+            return List.of();
         }
     }
 

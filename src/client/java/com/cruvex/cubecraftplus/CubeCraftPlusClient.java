@@ -1,17 +1,19 @@
 package com.cruvex.cubecraftplus;
 
+import com.cruvex.cubecraftplus.autovote.AutoVoteConfigs;
 import com.cruvex.cubecraftplus.autovote.AutoVoteManager;
 import com.cruvex.cubecraftplus.chat.ChatQueryManager;
 import com.cruvex.cubecraftplus.chestfinder.ChestFinderManager;
 import com.cruvex.cubecraftplus.commands.CommandManager;
 import com.cruvex.cubecraftplus.config.ConfigManager;
-import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.cubesocket.CubeSocket;
+import com.cruvex.cubecraftplus.cubesocket.CubeSocketEvents;
 import com.cruvex.cubecraftplus.debug.SignalProbe;
 import com.cruvex.cubecraftplus.friends.FriendsManager;
 import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.CubeEvents;
 import com.cruvex.cubecraftplus.game.GameManager;
+import com.cruvex.cubecraftplus.game.GameRegistry;
 import com.cruvex.cubecraftplus.leaderboard.LeaderboardSubmitManager;
 import net.fabricmc.api.ClientModInitializer;
 import org.slf4j.Logger;
@@ -28,11 +30,11 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         LOGGER.info("{} client init", MOD_ID);
 
         ConfigManager.getInstance().init();
-        // Seed games and autovote from cache, then the bundled copy, so both keep
-        // working when the API is down
-        CubepanionAPI.getInstance().seedOfflineData();
+        GameRegistry.getInstance().seed();
+        AutoVoteConfigs.getInstance().seed();
 
-        CubeEvents.CUBE_JOIN.register(() -> CubepanionAPI.getInstance().loadInitialData());
+        CubeEvents.CUBE_JOIN.register(CubeCraftPlusClient::loadRemoteData);
+        CubeSocketEvents.SOCKET_RELOAD_REQUEST.register(CubeCraftPlusClient::loadRemoteData);
 
         CommandManager.register();
 
@@ -46,5 +48,14 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         AutoVoteManager.getInstance().init();
         LeaderboardSubmitManager.getInstance().init();
         CubeSocket.getInstance().init();
+    }
+
+    /** Every join rather than once at startup, since this data changes server-side. */
+    private static void loadRemoteData() {
+        LOGGER.info("Loading data from Cubepanion");
+        GameRegistry.getInstance().load();
+        AutoVoteConfigs.getInstance().load();
+        LeaderboardSubmitManager.getInstance().loadConfiguration();
+        ChestFinderManager.getInstance().loadLocations();
     }
 }
