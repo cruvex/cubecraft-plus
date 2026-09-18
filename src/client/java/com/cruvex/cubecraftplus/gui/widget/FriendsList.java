@@ -1,7 +1,7 @@
 package com.cruvex.cubecraftplus.gui.widget;
 
-import com.cruvex.cubecraftplus.managers.HeadResolver;
-import com.cruvex.cubecraftplus.model.Friend;
+import com.cruvex.cubecraftplus.friends.Friend;
+import com.cruvex.cubecraftplus.friends.HeadResolver;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

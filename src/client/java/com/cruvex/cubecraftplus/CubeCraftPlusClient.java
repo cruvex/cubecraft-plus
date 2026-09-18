@@ -1,11 +1,18 @@
 package com.cruvex.cubecraftplus;
 
+import com.cruvex.cubecraftplus.autovote.AutoVoteManager;
+import com.cruvex.cubecraftplus.chat.ChatQueryManager;
+import com.cruvex.cubecraftplus.chestfinder.ChestFinderManager;
 import com.cruvex.cubecraftplus.commands.CommandManager;
+import com.cruvex.cubecraftplus.config.ConfigManager;
+import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.cubesocket.CubeSocket;
-import com.cruvex.cubecraftplus.events.CubeEvents;
-import com.cruvex.cubecraftplus.external.CubepanionAPI;
-import com.cruvex.cubecraftplus.managers.*;
-import com.cruvex.cubecraftplus.util.SignalProbe;
+import com.cruvex.cubecraftplus.debug.SignalProbe;
+import com.cruvex.cubecraftplus.friends.FriendsManager;
+import com.cruvex.cubecraftplus.game.CubeCraftManager;
+import com.cruvex.cubecraftplus.game.CubeEvents;
+import com.cruvex.cubecraftplus.game.GameManager;
+import com.cruvex.cubecraftplus.leaderboard.LeaderboardSubmitManager;
 import net.fabricmc.api.ClientModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

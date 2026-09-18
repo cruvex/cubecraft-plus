@@ -1,9 +1,9 @@
 package com.cruvex.cubecraftplus.gui.screen;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
+import com.cruvex.cubecraftplus.friends.Friend;
+import com.cruvex.cubecraftplus.friends.FriendsManager;
 import com.cruvex.cubecraftplus.gui.widget.FriendsList;
-import com.cruvex.cubecraftplus.managers.FriendsManager;
-import com.cruvex.cubecraftplus.model.Friend;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;

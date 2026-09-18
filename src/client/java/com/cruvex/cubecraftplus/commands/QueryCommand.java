@@ -1,7 +1,7 @@
 package com.cruvex.cubecraftplus.commands;
 
-import com.cruvex.cubecraftplus.managers.ChatQueryManager;
-import com.cruvex.cubecraftplus.util.ChatDump;
+import com.cruvex.cubecraftplus.chat.ChatQueryManager;
+import com.cruvex.cubecraftplus.debug.ChatDump;
 import com.cruvex.cubecraftplus.util.ModPaths;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
