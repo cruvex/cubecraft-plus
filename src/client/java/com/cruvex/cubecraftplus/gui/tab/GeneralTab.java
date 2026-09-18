@@ -5,7 +5,7 @@ import com.cruvex.cubecraftplus.gui.screen.ConfigScreen;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.network.chat.Component;
 
-/** Small standalone features that don't warrant a tab of their own. */
+/** Mod-wide settings, and small features that don't warrant a tab of their own. */
 public class GeneralTab extends ConfigTab {
 
     private static final String LANG_PREFIX = "cubecraftplus.general.";
@@ -28,6 +28,11 @@ public class GeneralTab extends ConfigTab {
                     highlight.active = value;
                 }));
         list.addBig(highlight);
+
+        ModConfig.UpdateCheckConfig updateCheck = config.updateCheck;
+        list.addHeader(Component.translatable(LANG_PREFIX + "update.title"));
+        list.addBig(toggle(LANG_PREFIX + "update", LANG_PREFIX + "update.tooltip",
+                updateCheck.enabled, value -> updateCheck.enabled = value));
     }
 
     @Override
