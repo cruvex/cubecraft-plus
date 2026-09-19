@@ -6,6 +6,7 @@ import com.cruvex.cubecraftplus.config.ConfigManager;
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
 import com.cruvex.cubecraftplus.debug.Debug;
+import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.CubeEvents;
 import com.cruvex.cubecraftplus.game.Game;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -105,7 +106,10 @@ public class ChestFinderManager {
         startSearch(true);
     }
 
+    /** The locations are CubeCraft's lobbies', so searching anywhere else can only mislead. */
     private void startSearch(boolean reportNotFound) {
+        if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
+
         // The chest might not be loaded in when the search starts, so we search for a set period
         searchTicksLeft = SEARCH_TICKS;
         this.reportNotFound = reportNotFound;

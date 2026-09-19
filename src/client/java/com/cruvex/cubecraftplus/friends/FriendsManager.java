@@ -222,7 +222,8 @@ public class FriendsManager {
     }
 
     private void onGameMessage(Component message, boolean overlay) {
-        if (overlay) return;
+        // Other servers word their friend messages the same, and a stray add would be saved
+        if (overlay || !CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
         String text = message.getString();
         for (Event event : events) {
