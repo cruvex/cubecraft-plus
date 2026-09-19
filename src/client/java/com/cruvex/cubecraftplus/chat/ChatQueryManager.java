@@ -3,6 +3,7 @@ package com.cruvex.cubecraftplus.chat;
 import com.cruvex.cubecraftplus.debug.Debug;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
@@ -92,6 +93,8 @@ public class ChatQueryManager {
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
         // Clicked commands skip this event; ClientPacketListenerMixin holds those
         ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !hold(command));
+        // Or the next server's chat is swallowed by a reply this one never sent; can fire off-thread
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(late::clear));
     }
 
     /** Queues a command without its slash; the reply is its header plus matching lines until quiet. */

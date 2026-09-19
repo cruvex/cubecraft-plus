@@ -69,6 +69,8 @@ public class CubeCraftManager {
     }
 
     private void onTeamChange(PlayerTeam team) {
+        if (!isOnCubeCraft()) return;
+
         Matcher matcher = SERVER_ID_PATTERN.matcher(team.getPlayerPrefix().getString());
         if (matcher.matches()) {
             setServerId(matcher.group(1));
@@ -76,6 +78,8 @@ public class CubeCraftManager {
     }
 
     private void onTitle(Component title) {
+        if (!isOnCubeCraft()) return;
+
         // Any other title means the AFK screen is gone, which is the only end CubeCraft announces
         afkTitleAt = title.getString().equals(AFK_TITLE) ? System.currentTimeMillis() : 0;
     }
