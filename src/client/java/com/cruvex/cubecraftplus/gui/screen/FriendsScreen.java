@@ -78,7 +78,7 @@ public class FriendsScreen extends Screen {
                 .withTootip()
                 .build());
 
-        list = layout.addToContents(new FriendsList(minecraft, width, layout.getContentHeight(), layout.getHeaderHeight()));
+        list = layout.addToContents(new FriendsList(minecraft, this, width, layout.getContentHeight(), layout.getHeaderHeight()));
 
         LinearLayout footer = layout.addToFooter(LinearLayout.horizontal().spacing(8));
         footer.addChild(Button.builder(CommonComponents.GUI_DONE, button -> onClose()).build());
