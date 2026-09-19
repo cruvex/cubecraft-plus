@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.PlayerTeam;
 
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -50,7 +51,7 @@ public class CubeCraftManager {
 
     private void onServerJoin(Minecraft client) {
         String ip = Util.getServerIp(client);
-        if (!Util.isKubusMaken(ip)) {
+        if (!isKubusMaken(ip)) {
             Debug.log("Joined {}, not CubeCraft", ip == null ? "singleplayer" : ip);
             reset();
             return;
@@ -89,7 +90,26 @@ public class CubeCraftManager {
     }
 
     public boolean isOnCubeCraft() {
-        return Util.isOnCubeCraft(Minecraft.getInstance());
+        return isKubusMaken(Util.getServerIp(Minecraft.getInstance()));
+    }
+
+    /** Whether a server address is CubeCraft, using Cubepanion's rules. */
+    private static boolean isKubusMaken(String address) {
+        if (address == null) return false;
+
+        // Server list entries may carry a port, the domains below don't
+        String host = address.toLowerCase(Locale.ROOT).trim();
+        int portSeparator = host.lastIndexOf(':');
+        if (portSeparator > -1) {
+            host = host.substring(0, portSeparator);
+        }
+
+        if (host.endsWith("cubecraft.net")) return true;
+        if (host.endsWith("cubecraftgames.net")) return true;
+        if (host.endsWith("ccgn.co") && !host.contains("maps")) return true;
+
+        // Dev and test servers
+        return host.contains("-dev-cc") || host.endsWith("test.ziax.com");
     }
 
     /** Whether CubeCraft is showing its AFK title; stays true for {@value #AFK_TIMEOUT_MS}ms after the last one. */
