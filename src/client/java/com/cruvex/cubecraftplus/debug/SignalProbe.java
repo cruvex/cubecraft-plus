@@ -1,6 +1,7 @@
 package com.cruvex.cubecraftplus.debug;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
+import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.CubeEvents;
 import com.cruvex.cubecraftplus.game.Game;
 import com.cruvex.cubecraftplus.game.GameManager;
@@ -224,7 +225,7 @@ public class SignalProbe {
         connectedAt = System.currentTimeMillis();
         resetPerServer();
         // Deliberately not gated on being on CubeCraft: leaving it is worth a line too
-        signal("CONNECT", "server={} cubecraft={}", Util.getServerIp(client), Util.isOnCubeCraft(client));
+        signal("CONNECT", "server={} cubecraft={}", Util.getServerIp(client), CubeCraftManager.getInstance().isOnCubeCraft());
     }
 
     private void onDisconnect() {
@@ -445,7 +446,7 @@ public class SignalProbe {
     // Plumbing
 
     private boolean active() {
-        return enabled && Util.isOnCubeCraft(Minecraft.getInstance());
+        return enabled && CubeCraftManager.getInstance().isOnCubeCraft();
     }
 
     private void resetPerServer() {
