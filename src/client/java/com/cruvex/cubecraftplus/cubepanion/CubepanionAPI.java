@@ -27,8 +27,7 @@ public class CubepanionAPI {
 
     private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
 
-    private static final boolean DEV = System.getenv("DEV") != null;
-    private static final String BASE_URL = DEV ? "http://192.168.0.193:5050/api" : "https://cubepanion.ameliah.art/api";
+    private static final String BASE_URL = "https://cubepanion.ameliah.art/api";
     private static final String BASE_URL_V2 = BASE_URL + "/v2";
 
     // Served from the repo rather than the API, so adding a game only takes a commit there
