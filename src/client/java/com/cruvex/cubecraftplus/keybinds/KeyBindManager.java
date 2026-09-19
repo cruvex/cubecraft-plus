@@ -1,0 +1,51 @@
+package com.cruvex.cubecraftplus.keybinds;
+
+import com.cruvex.cubecraftplus.CubeCraftPlusClient;
+import com.cruvex.cubecraftplus.game.CubeCraftManager;
+import com.cruvex.cubecraftplus.gui.screen.ConfigScreen;
+import com.cruvex.cubecraftplus.gui.screen.FriendsScreen;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
+
+/** The mod's section under Controls > Key Binds; keys start unbound so none clash. */
+public class KeyBindManager {
+
+    private static final KeyMapping.Category CATEGORY =
+            KeyMapping.Category.register(Identifier.fromNamespaceAndPath(CubeCraftPlusClient.MOD_ID, "main"));
+
+    private static KeyBindManager instance;
+
+    // Registered on construction, so this must first be created during client init
+    private final KeyMapping openConfig = register("key.cubecraftplus.config");
+    private final KeyMapping openFriends = register("key.cubecraftplus.friends");
+
+    public static KeyBindManager getInstance() {
+        if (instance == null) {
+            instance = new KeyBindManager();
+        }
+        return instance;
+    }
+
+    public void init() {
+        ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
+    }
+
+    private void onEndTick(Minecraft client) {
+        // Presses are drained off CubeCraft too, or they would fire on joining it
+        boolean onCubeCraft = CubeCraftManager.getInstance().isOnCubeCraft();
+        while (openConfig.consumeClick()) {
+            if (onCubeCraft) client.gui.setScreen(new ConfigScreen(client.gui.screen()));
+        }
+        while (openFriends.consumeClick()) {
+            if (onCubeCraft) client.gui.setScreen(new FriendsScreen(client.gui.screen()));
+        }
+    }
+
+    private static KeyMapping register(String name) {
+        return KeyMappingHelper.registerKeyMapping(new KeyMapping(name, InputConstants.UNKNOWN.getValue(), CATEGORY));
+    }
+}

@@ -46,5 +46,8 @@
   "cubecraftplus.autovote.silent.tooltip": "Votes in the background, so the voting menus never open on screen.",
   "cubecraftplus.autovote.unavailable": "No vote configuration available yet",
   "cubecraftplus.text.save": "Save",
-  "cubecraftplus.text.cancel": "Cancel"
+  "cubecraftplus.text.cancel": "Cancel",
+  "key.category.cubecraft-plus.main": "CubeCraft+",
+  "key.cubecraftplus.config": "Open Config",
+  "key.cubecraftplus.friends": "Open Friends List"
 }
