@@ -14,6 +14,10 @@ version = providers.gradleProperty("mod_version").get()
 group = providers.gradleProperty("maven_group").get()
 
 repositories {
+	maven("https://maven.terraformersmc.com/releases") {
+		name = "Terraformers"
+	}
+
 	// Add repositories to retrieve artifacts from in here.
 	// You should only use this when depending on other mods because
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
@@ -40,6 +44,9 @@ dependencies {
 	implementation("net.fabricmc:fabric-loader:${providers.gradleProperty("loader_version").get()}")
 
 	implementation("net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty("fabric_api_version").get()}")
+
+	// Only for the config screen entrypoint, which loader skips when ModMenu isn't installed
+	compileOnly("com.terraformersmc:modmenu:${providers.gradleProperty("modmenu_version").get()}")
 }
 
 tasks.processResources {
