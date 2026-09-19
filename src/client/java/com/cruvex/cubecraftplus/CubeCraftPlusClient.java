@@ -14,6 +14,7 @@ import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.CubeEvents;
 import com.cruvex.cubecraftplus.game.GameManager;
 import com.cruvex.cubecraftplus.game.GameRegistry;
+import com.cruvex.cubecraftplus.keybinds.KeyBindManager;
 import com.cruvex.cubecraftplus.leaderboard.LeaderboardSubmitManager;
 import com.cruvex.cubecraftplus.update.UpdateChecker;
 import net.fabricmc.api.ClientModInitializer;
@@ -38,6 +39,7 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         CubeSocketEvents.SOCKET_RELOAD_REQUEST.register(CubeCraftPlusClient::loadRemoteData);
 
         CommandManager.register();
+        KeyBindManager.getInstance().init();
 
         ChatQueryManager.getInstance().init();
         FriendsManager.getInstance().init();
