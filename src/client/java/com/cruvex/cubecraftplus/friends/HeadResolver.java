@@ -9,8 +9,8 @@ import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import com.mojang.authlib.GameProfileRepository;
 import com.mojang.authlib.ProfileLookupCallback;
-import com.mojang.authlib.minecraft.MinecraftSessionService;
-import com.mojang.authlib.yggdrasil.ProfileResult;
+import com.mojang.authlib.minecraft.SessionService;
+import com.mojang.authlib.services.ProfileResult;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Util;
 import net.minecraft.world.item.component.ResolvableProfile;
@@ -80,7 +80,7 @@ public class HeadResolver {
 
     // Fetched here rather than by vanilla, which caches a failed lookup for 10 minutes and cannot retry
     private void fetchHead(UUID id) {
-        MinecraftSessionService sessions = Minecraft.getInstance().services().sessionService();
+        SessionService sessions = Minecraft.getInstance().services().sessionService();
         CompletableFuture.runAsync(() -> {
             ProfileResult result = sessions.fetchProfile(id, true);
             if (result != null) {

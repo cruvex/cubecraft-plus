@@ -173,7 +173,8 @@ public class AutoVoteManager {
             result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         }
         if (result.consumesAction()) {
-            player.swing(InteractionHand.MAIN_HAND);
+            ItemStack held = player.getItemInHand(InteractionHand.MAIN_HAND);
+            player.swing(InteractionHand.MAIN_HAND, held.getInteractAnimation(), false);
         }
     }
 
