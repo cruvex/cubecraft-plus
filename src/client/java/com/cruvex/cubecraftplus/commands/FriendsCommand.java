@@ -21,7 +21,7 @@ public final class FriendsCommand {
     }
 
     private static int open(Minecraft client) {
-        // Same as ConfigCommand: open next tick, once the chat screen is gone
+        // Opened next tick, once the chat screen this ran from has finished closing
         client.execute(() -> client.gui.setScreen(new FriendsScreen(client.gui.screen())));
         return 1;
     }

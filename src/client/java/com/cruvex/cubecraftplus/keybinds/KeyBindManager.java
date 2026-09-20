@@ -19,7 +19,7 @@ public class KeyBindManager {
 
     private static KeyBindManager instance;
 
-    // Registered on construction, so this must first be created during client init
+    // Registered on construction, so the manager has to be created during client init
     private final KeyMapping openConfig = register("key.cubecraftplus.config");
     private final KeyMapping openFriends = register("key.cubecraftplus.friends");
 
@@ -35,7 +35,7 @@ public class KeyBindManager {
     }
 
     private void onEndTick(Minecraft client) {
-        // Presses are drained off CubeCraft too, or they would fire on joining it
+        // Presses are drained off CubeCraft too, rather than queueing up until it is joined
         boolean onCubeCraft = CubeCraftManager.getInstance().isOnCubeCraft();
         while (openConfig.consumeClick()) {
             if (onCubeCraft) client.gui.setScreen(new ConfigScreen(client.gui.screen()));

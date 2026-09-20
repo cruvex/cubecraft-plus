@@ -17,10 +17,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * Base for {@link ConfigScreen} tabs: holds the options list and the widget builders, so a
- * tab only has to declare its own options. Translation keys are passed in full.
- */
+/** Base for {@link ConfigScreen} tabs, holding the options list and the widget builders; translation keys are passed in full. */
 public abstract class ConfigTab implements Tab {
 
     protected static final int BUTTON_WIDTH = 150;
@@ -61,7 +58,7 @@ public abstract class ConfigTab implements Tab {
         return Component.empty();
     }
 
-    /** The content is a scrolling list, so the tab bar has nothing to arrange. */
+    /** An empty layout: the content is a scrolling list, so the tab bar has nothing to arrange. */
     @Override
     public Layout getLayout() {
         return layout;

@@ -22,10 +22,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Settings screen, one tab per feature. Edits go into a draft copy of the config and are
- * only persisted when Save is clicked.
- */
+/** Settings screen, one tab per feature; edits go into a draft config that only Save persists. */
 public class ConfigScreen extends Screen {
 
     private final Screen parent;
@@ -71,7 +68,7 @@ public class ConfigScreen extends Screen {
         layout.arrangeElements();
     }
 
-    /** Tabs hand their dropdowns over so the screen can route popup clicks and rendering. */
+    /** Takes a tab's dropdown, so the screen can route its popup's clicks and rendering. */
     public void addDropdown(DropdownWidget<?> dropdown) {
         dropdowns.add(dropdown);
     }
@@ -90,8 +87,7 @@ public class ConfigScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        // Popups can overlap other rows and widgets, so route their clicks before the
-        // normal bounds-based widget routing gets a chance to hit what's behind them
+        // Popups go first, ahead of the bounds-based routing that would hit what is behind them
         for (DropdownWidget<?> dropdown : dropdowns) {
             if (dropdown.handlePopupClick(event)) {
                 return true;
@@ -102,7 +98,7 @@ public class ConfigScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        // Scrolling moves the rows out from under an open popup — just close it
+        // Scrolling moves the rows out from under an open popup, so close it
         closeAllDropdowns();
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
@@ -113,8 +109,7 @@ public class ConfigScreen extends Screen {
 
         if (dropdowns.stream().noneMatch(DropdownWidget::isOpen)) return;
 
-        // A later stratum draws over everything extracted so far, which is what an open
-        // dropdown list needs — it overhangs the rows and widgets beneath it
+        // A later stratum draws over everything extracted so far, which an overhanging list needs
         graphics.nextStratum();
         for (DropdownWidget<?> dropdown : dropdowns) {
             dropdown.extractPopup(graphics, mouseX, mouseY);

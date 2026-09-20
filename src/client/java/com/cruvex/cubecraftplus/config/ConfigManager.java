@@ -14,10 +14,7 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * Loads and saves the mod config. A missing or corrupt file falls back to defaults and is
- * rewritten, so existing files pick up new fields.
- */
+/** Loads and saves the mod config, falling back to defaults when the file is missing or corrupt. */
 public class ConfigManager {
 
     private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
@@ -54,7 +51,7 @@ public class ConfigManager {
             Files.move(legacy, configPath);
             LOGGER.info("Moved config from {} to {}", ModPaths.display(legacy), ModPaths.display(configPath));
         } catch (IOException e) {
-            // Not fatal: load() falls back to the old path and save() writes the new one
+            // Not fatal: load() falls back to the old path, and save() writes the new one
             LOGGER.warn("Could not move config from {} to {}, reading it in place instead",
                     ModPaths.display(legacy), ModPaths.display(configPath), e);
         }
@@ -73,7 +70,7 @@ public class ConfigManager {
             }
         }
         config.validate();
-        // Write back so a fresh install gets a file and existing files pick up new fields
+        // Written back, so a fresh install gets a file and an existing one picks up new fields
         save();
     }
 

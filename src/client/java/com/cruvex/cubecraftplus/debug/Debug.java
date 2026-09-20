@@ -7,11 +7,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.slf4j.helpers.MessageFormatter;
 
-/**
- * Debug mode, toggled in-game with /ccp debug. {@link #log} writes to the logger at debug
- * level and {@link #info} at info level; both mirror to chat while enabled. Takes slf4j-style
- * {@code {}} placeholders.
- */
+/** Logging that also mirrors to chat while debug mode is on; takes slf4j-style {@code {}} placeholders. */
 public class Debug {
 
     private static boolean enabled = FabricLoader.getInstance().isDevelopmentEnvironment();;

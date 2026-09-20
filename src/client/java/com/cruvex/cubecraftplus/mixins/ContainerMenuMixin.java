@@ -13,18 +13,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Feeds {@link RemoteMenu} from the container packets and hides the voting menus AutoVote is
- * waiting for.
- *
- * Every handle* method runs twice, once per thread, until PacketUtils.ensureRunningOnSameThread
- * throws on the netty pass. Only injects past that check are on the client thread, so never
- * move these to HEAD.
- */
+/** Feeds {@link RemoteMenu} from the container packets and hides the voting menus AutoVote is waiting for. */
+// Every inject sits past PacketUtils.ensureRunningOnSameThread, so it runs once, on the client thread
 @Mixin(ClientPacketListener.class)
 public class ContainerMenuMixin {
 
-    /** Cancelling here means no screen is built and player.containerMenu is never assigned. */
+    /** Takes a wanted menu into {@link RemoteMenu}, cancelling before a screen is built for it. */
     @Inject(
             method = "handleOpenScreen",
             at = @At(value = "INVOKE",
@@ -67,7 +61,7 @@ public class ContainerMenuMixin {
                 packet.getContainerId(), packet.getStateId(), packet.getSlot(), packet.getItem());
     }
 
-    /** Our menus have no screen, so vanilla must not clear whatever the player does have open. */
+    /** Cancels vanilla's close for our own menus, which have no screen for it to clear. */
     @Inject(
             method = "handleContainerClose",
             at = @At(value = "INVOKE",

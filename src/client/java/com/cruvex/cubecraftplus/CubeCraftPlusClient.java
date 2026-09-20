@@ -54,7 +54,7 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         UpdateChecker.getInstance().init();
     }
 
-    /** Every join rather than once at startup, since this data changes server-side. */
+    /** Runs on every join, not once at startup, since this data changes server-side. */
     private static void loadRemoteData() {
         LOGGER.info("Loading data from Cubepanion");
         GameRegistry.getInstance().load();
