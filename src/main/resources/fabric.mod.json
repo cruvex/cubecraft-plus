@@ -12,7 +12,7 @@
 		"sources": "https://github.com/cruvex/cubecraft-plus"
 	},
 	"license": "CC0-1.0",
-	"icon": "assets/cubecraft-plus/cube-logo-cropped.png",
+	"icon": "assets/cubecraft-plus/cubecraft-plus-logo.png",
 	"environment": "client",
 	"entrypoints": {
 		"client": [
