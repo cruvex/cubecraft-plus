@@ -7,7 +7,6 @@ public class CommandManager {
 
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register(((dispatcher, registryAccess) -> {
-            // Only register commands if on CubeCraft
             if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
             LeaderboardCommand.register(dispatcher);

@@ -41,10 +41,7 @@ public final class CubeEvents {
                         for (ClientEliminated cb : callbacks) cb.onClientEliminated(game);
                     });
 
-    /**
-     * The game finished. The winner is a player name, a team colour, or null when unread.
-     * Only fires while the client is still on the game's server.
-     */
+    /** The game finished. The winner is a player name, a team colour, or null when unread. */
     public static final Event<GameEnd> GAME_END =
             EventFactory.createArrayBacked(GameEnd.class,
                     callbacks -> (game, winner) -> {

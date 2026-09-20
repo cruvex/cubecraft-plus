@@ -20,7 +20,7 @@ public final class SignalLog {
 
     private static final DateTimeFormatter FILE_NAME =
             DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss", Locale.ROOT);
-    /** Milliseconds matter: the log itself is second-accurate, the order within a second is the point. */
+    /** To the millisecond, since the order of signals within a second is the point. */
     private static final DateTimeFormatter TIME =
             DateTimeFormatter.ofPattern("HH:mm:ss.SSS", Locale.ROOT);
 
@@ -112,7 +112,7 @@ public final class SignalLog {
                 .orElse("?");
     }
 
-    /** Compact and fixed-width-ish, so columns stay readable: 350ms, 2.4s, 3m12s. */
+    /** Renders a duration compactly and near fixed width: 350ms, 2.4s, 3m12s. */
     private static String duration(long millis) {
         if (millis < 1000) return millis + "ms";
         if (millis < 60_000) return String.format(Locale.ROOT, "%.1fs", millis / 1000.0);

@@ -78,7 +78,7 @@ public class ApiCache {
     }
 
     public <T> void write(String name, List<T> value) {
-        // Cached garbage would be stickier than no cache at all
+        // Nothing empty is cached: it would be stickier than no cache at all
         if (value == null || value.isEmpty()) {
             return;
         }
@@ -117,7 +117,7 @@ public class ApiCache {
         }
     }
 
-    /** Payload stays a tree so one reader works for every dataset. */
+    /** The mod version a cache file was written by, wrapped around an untyped payload. */
     private static class Envelope {
         String modVersion;
         JsonElement data;

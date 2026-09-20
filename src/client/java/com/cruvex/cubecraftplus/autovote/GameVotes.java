@@ -10,12 +10,7 @@ import java.util.List;
 /** Turns the autovote config into the clicks AutoVoteManager performs. */
 public final class GameVotes {
 
-    /**
-     * One vote: which category item to click in the main voting menu, which option to
-     * click in the vote menu, and the vote menu's title. Games without a category menu
-     * (BedWars) use categorySlot -1: the menu opened by the voting item is the vote
-     * menu itself and has no return button.
-     */
+    /** categorySlot -1 means the game has no category menu (BedWars): the voting item opens the vote menu itself. */
     public record VotePair(int categorySlot, int voteSlot, String submenuTitle) {
         public boolean hasSubmenu() {
             return categorySlot != -1;

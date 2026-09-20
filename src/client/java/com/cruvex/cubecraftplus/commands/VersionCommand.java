@@ -19,7 +19,7 @@ public final class VersionCommand {
         source.sendFeedback(Component.translatable("cubecraftplus.version.installed",
                 UpdateChecker.installedVersion(), UpdateChecker.minecraftVersion()));
 
-        // Asks even with the update check turned off, since the player asked
+        // Asked for even with the update check turned off
         UpdateChecker.getInstance().fetchLatest().whenComplete((result, error) -> source.getClient().execute(() -> {
             if (error != null) {
                 source.sendError(Component.translatable("cubecraftplus.version.failed", UpdateChecker.failureReason(error)));

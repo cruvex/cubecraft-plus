@@ -30,21 +30,21 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Friends' heads: Mojang uuids for their names, kept forever so a renamed friend keeps the right head. */
+/** Friends' heads, and the Mojang uuids behind them, kept forever so a renamed friend keeps the right head. */
 public class HeadResolver {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final TypeToken<Map<String, UUID>> IDS = new TypeToken<>() {};
-    /** One new head starts loading per this, so scrolling a long list does not burst Mojang's session server. */
+    /** How often a new head may start loading, so scrolling a long list does not burst Mojang's session server. */
     private static final long HEAD_INTERVAL_MS = 100;
     /** How long every new head waits after a failed profile request, which is usually a rate limit. */
     private static final long FAILURE_PAUSE_MS = 3000;
-    /** A deleted account fails every time too, so stop asking after this many. */
+    /** Profile requests per uuid before it is given up on, a deleted account failing every time. */
     private static final int MAX_ATTEMPTS = 3;
 
     private static HeadResolver instance;
 
-    /** By lowercase name; written on the lookup thread, read on the client thread. */
+    /** Uuids by lowercase name; written on the lookup thread, read on the client thread. */
     private final Map<String, UUID> ids = new ConcurrentHashMap<>(load());
     private CompletableFuture<Void> lookup = CompletableFuture.completedFuture(null);
     /** Profiles fetched with their skin data, for vanilla to draw; written on fetch threads. */
@@ -78,11 +78,10 @@ public class HeadResolver {
         return head;
     }
 
-    // Fetched here, not left to vanilla, which caches a failed lookup for 10 minutes and so cannot retry
+    // Fetched here rather than by vanilla, which caches a failed lookup for 10 minutes and cannot retry
     private void fetchHead(UUID id) {
         MinecraftSessionService sessions = Minecraft.getInstance().services().sessionService();
         CompletableFuture.runAsync(() -> {
-            // By uuid, never by name, which could now belong to someone else
             ProfileResult result = sessions.fetchProfile(id, true);
             if (result != null) {
                 heads.put(id, ResolvableProfile.createResolved(result.profile()));
@@ -95,7 +94,7 @@ public class HeadResolver {
         }, Util.nonCriticalIoPool());
     }
 
-    /** Looks up names without a uuid, unless a lookup is still running; a name nobody has is asked again next time. */
+    /** Looks up the uuids of names that have none, unless a lookup is still running. */
     public void resolve(Collection<String> names) {
         String[] unknown = names.stream().filter(name -> idFor(name) == null).toArray(String[]::new);
         if (unknown.length == 0 || !lookup.isDone()) return;

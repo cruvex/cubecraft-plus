@@ -75,7 +75,7 @@ public class ClientPacketListenerMixin {
         }
     }
 
-    // Past the thread handoff, where only server chat arrives: not action bar text or the mod's own messages
+    // Past the thread handoff, where only server chat arrives: no action bar text, no mod messages
     @Inject(method = "handleSystemChat", cancellable = true, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/multiplayer/chat/ChatListener;handleSystemMessage(Lnet/minecraft/network/chat/Component;Z)V"))
     private void onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
@@ -85,7 +85,7 @@ public class ClientPacketListenerMixin {
         }
     }
 
-    // Clicked commands send their packet directly, skipping ALLOW_COMMAND
+    // Holds clicked commands, which send their packet directly and skip ALLOW_COMMAND
     @WrapOperation(method = {"sendUnattendedCommand", "lambda$openCommandSendConfirmationWindow$0"},
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V"))

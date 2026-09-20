@@ -56,7 +56,7 @@ public final class ModPaths {
         return debug(prefix + "-" + LocalDateTime.now().format(TIMESTAMP) + ".log");
     }
 
-    // Makes paths relative to the game directory, for display purposes.
+    /** A path relative to the game directory, for showing in logs and chat. */
     public static String display(Path path) {
         Path absolute = path.toAbsolutePath().normalize();
         if (absolute.startsWith(GAME_DIR)) {

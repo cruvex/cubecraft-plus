@@ -29,7 +29,7 @@ public class PacketDecoder extends ByteToMessageDecoder {
         int id = packetBuffer.readVarIntFromBuffer();
         Packet packet = this.cubeSocket.getProtocol().getPacket(id);
 
-        // Ping and pong flow every few seconds, they'd drown out everything else
+        // Ping and pong go unlogged: they flow every few seconds
         if (id != 0 && id != 1) {
             Debug.log("CubeSocket in: {} {}", id, packet.getClass().getSimpleName());
         }

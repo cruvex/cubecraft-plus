@@ -19,7 +19,7 @@ public class PacketLocationUpdate extends Packet {
         this.preLobby = preLobby;
     }
 
-    /** Lobby move built from the tracked server ids, sent once the socket is logged in. */
+    /** A lobby move built from the server ids CubeCraftManager tracks. */
     public static PacketLocationUpdate lobbyMove() {
         CubeCraftManager manager = CubeCraftManager.getInstance();
 

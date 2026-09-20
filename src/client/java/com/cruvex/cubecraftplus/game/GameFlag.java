@@ -1,9 +1,6 @@
 package com.cruvex.cubecraftplus.game;
 
-/**
- * Per-game behaviour flags, served by the API as the {@code enabledFlags} bitfield. The bit
- * positions are the API's, not ours to renumber.
- */
+/** Per-game behaviour flags, served by the API as the {@code enabledFlags} bitfield; the bit positions are the API's. */
 public enum GameFlag {
     RESPAWN_TAGS(1),
     /** The game drops the client straight in, with no cages or pre-game lobby. */
@@ -11,7 +8,7 @@ public enum GameFlag {
     LOBBY(1 << 2),
     DISCORD_RPC_PLAYER_TRACKING(1 << 3),
     DONT_DROP_TOOLS(1 << 4),
-    /** The sidebar changes during play, so its title is not a reliable game name. */
+    /** The sidebar changes during play, so its title is not the game name. */
     IGNORE_SCOREBOARD_UPDATES(1 << 5),
     ALTERNATE_MAP_TRACKER(1 << 6),
     HAS_RESPAWNS(1 << 7),

@@ -13,12 +13,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * Vanilla-styled dropdown, which vanilla itself has no widget for. The open option list
- * overhangs neighbouring widgets and scrolling list rows, so the owning screen has to draw
- * it through {@link #extractPopup} and route clicks to {@link #handlePopupClick} ahead of
- * its own bounds-based widget routing. Opens upward when there is no room below.
- */
+/** Vanilla-styled dropdown; its open list overhangs its neighbours, so the owning screen drives {@link #extractPopup} and {@link #handlePopupClick}. */
 public class DropdownWidget<T> extends AbstractButton {
 
     private static final int ENTRY_HEIGHT = 14;
@@ -62,18 +57,13 @@ public class DropdownWidget<T> extends AbstractButton {
             return;
         }
         closeOthers.run();
-        // Open upward if the list would run off the bottom of the screen
+        // Opens upward when the list would run off the bottom of the screen
         int screenHeight = Minecraft.getInstance().getWindow().getGuiScaledHeight();
         openUp = getY() + getHeight() + popupHeight() > screenHeight;
         setOpen(true);
     }
 
-    /**
-     * Routes a click that may belong to the open option list. Returns true if the
-     * click selected an entry. A click anywhere else closes the list and returns
-     * false so the click still reaches whatever was clicked — except on this
-     * widget's own face, where the normal routing handles the close-toggle.
-     */
+    /** Routes a click at the open option list, returning true when it selected an entry; anything else closes the list. */
     public boolean handlePopupClick(MouseButtonEvent event) {
         if (!open || event.button() != 0) return false;
 
@@ -93,12 +83,12 @@ public class DropdownWidget<T> extends AbstractButton {
 
     @Override
     protected void renderContents(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        // Same as vanilla Button$Plain: button sprite plus centered scrolling label
+        // A button sprite plus a centred scrolling label, as vanilla's Button$Plain draws
         renderDefaultSprite(graphics);
         renderDefaultLabel(graphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
     }
 
-    /** Called by the screen after all widgets have rendered, so the list draws on top. */
+    /** Draws the open option list; the screen calls this after all widgets have rendered, so it lands on top. */
     public void renderPopup(GuiGraphics graphics, int mouseX, int mouseY) {
         if (!open) return;
 

@@ -12,10 +12,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
-/**
- * Scrollable options list laid out like vanilla's OptionsList, which can't be reused here
- * because it is hard-wired to OptionsSubScreen and OptionInstances.
- */
+/** Scrollable options list laid out like vanilla's OptionsList, which is hard-wired to OptionsSubScreen. */
 public class ConfigOptionsList extends ContainerObjectSelectionList<ConfigOptionsList.AbstractEntry> {
 
     private static final int ITEM_HEIGHT = 25;
@@ -31,7 +28,7 @@ public class ConfigOptionsList extends ContainerObjectSelectionList<ConfigOption
     }
 
     public void addHeader(Component text) {
-        // Vanilla's OptionsList pads two text lines above a section; one reads tighter here
+        // One text line above a section, where vanilla's OptionsList pads two
         int paddingTop = this.children().isEmpty() ? 0 : LINE_HEIGHT;
         this.addEntry(new HeaderEntry(this.screen, text, paddingTop), paddingTop + LINE_HEIGHT + 4);
     }

@@ -19,12 +19,7 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Tracks which game the client is in and where both it and the game are in their lives.
- *
- * <p>The signals behind each rule, and the section numbers referenced below, are in
- * {@code docs/game-timeline-signals.md}.
- */
+/** Tracks which game the client is in and where it is in its life; the § references are docs/game-timeline-signals.md. */
 public class GameManager {
 
     private static GameManager instance;
@@ -43,20 +38,14 @@ public class GameManager {
     private static final int HANDOVER_TICKS = 1;
     /** A death that has not respawned within this is final. */
     private static final int RESPAWN_TIMEOUT_TICKS = 160;
-    /** A moment that has not happened. */
     private static final long NEVER = Long.MIN_VALUE;
 
     /** Where the client is in the life of one game instance. */
     public enum Phase {
-        /** Not in a game. */
         NONE,
-        /** Joined, waiting for the game to start. */
-        PRE_GAME,
-        /** The game is running and the client is playing. */
-        IN_GAME,
-        /** The client is out, but the game is still running and it is watching. */
-        SPECTATING,
-        /** The game finished. */
+        PRE_GAME,   // joined, waiting for the game to start
+        IN_GAME,    // running, with the client playing
+        SPECTATING, // the client is out, but the game is still running
         ENDED
     }
 
@@ -66,7 +55,7 @@ public class GameManager {
     // Signals seen since the last decision, client thread only
     private boolean sawConnect;
     private boolean sawRespawn;
-    // -1 while no decision is pending
+    // Ticks until the pending decision, or -1 while none is pending
     private int decisionDelay = -1;
 
     /** Client ticks since init. */
@@ -102,7 +91,7 @@ public class GameManager {
             return;
         }
 
-        // The rebuild that consumes this can land a tick or more later
+        // Consumed by the sidebar rebuild, which can land a tick or more later
         sawConnect = true;
     }
 
@@ -117,7 +106,7 @@ public class GameManager {
         if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
         if (slot == DisplaySlot.SIDEBAR) {
-            // The respawn that classifies this rebuild follows it by a few milliseconds
+            // Wait a tick for the respawn that classifies this rebuild
             decisionDelay = 1;
         } else if (slot == DisplaySlot.LIST && since(connectTick) > HANDOVER_TICKS) {
             // The tab list kill counter is created when a game starts (§3.1)
@@ -134,7 +123,7 @@ public class GameManager {
         }
 
         if (decisionDelay < 0) {
-            // A respawn only counts towards the rebuild it arrives with
+            // A respawn only counts towards a rebuild it arrives with
             sawRespawn = false;
             return;
         }
@@ -152,7 +141,7 @@ public class GameManager {
 
         Game game = readSidebarGame();
 
-        // A server switch respawns the client too, so the connection is judged first
+        // A connect outranks a respawn, which a server switch also produces
         if (connected) {
             joinGame(game, "server switch");
         } else if (respawned && phase == Phase.PRE_GAME) {
@@ -164,7 +153,7 @@ public class GameManager {
         }
     }
 
-    /** Chat announces the game ending, and is a fallback for its start. */
+    /** Reads the game's start and end out of chat. */
     private void onGameMessage(Component message, boolean overlay) {
         if (overlay || !CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
@@ -179,12 +168,11 @@ public class GameManager {
         }
     }
 
-    /** Spectator means the client died; leaving spectator means it respawned (§4). */
+    /** Spectator means the client died; leaving it means the client respawned (§4). */
     private void onGameModeChange(GameType mode) {
         if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
         if (mode == GameType.CREATIVE) {
-            // Creative is never handed out on CubeCraft
             Debug.log("Unexpected creative game mode, game timeline may be wrong");
             return;
         }
@@ -220,7 +208,6 @@ public class GameManager {
         phase = Phase.PRE_GAME;
 
         if (game == null) {
-            // The next boundary names it
             Debug.log("Joined a game ({}), name not readable yet", reason);
             return;
         }
@@ -240,7 +227,6 @@ public class GameManager {
     private void joinedInProgress() {
         if (currentGame == null || currentGame.isLobby()) return;
 
-        // A game in progress can only ever be watched, never joined into play
         phase = Phase.SPECTATING;
         Debug.log("Joined {} already in progress, as a spectator", currentGame.name());
     }
@@ -303,7 +289,7 @@ public class GameManager {
         pendingDeathTick = NEVER;
     }
 
-    /** Ticks since a moment, or {@link Long#MAX_VALUE} when it never happened. */
+    /** Ticks since a moment, or {@link Long#MAX_VALUE} for {@link #NEVER}. */
     private long since(long moment) {
         return moment == NEVER ? Long.MAX_VALUE : tick - moment;
     }
@@ -336,7 +322,7 @@ public class GameManager {
         if (sidebar == null) return null;
 
         String title = sidebar.getDisplayName().getString();
-        // Strip the colours and decoration CubeCraft wraps the sidebar title in
+        // Strips the colours and decoration CubeCraft wraps the title in
         String cleaned = title.replaceAll("[^a-zA-Z .]", "").trim();
         if (cleaned.isEmpty() || !cleaned.matches("[a-zA-Z ]+")) {
             Debug.log("Sidebar title is not a game name: {}", title);
@@ -363,7 +349,7 @@ public class GameManager {
         return phase == Phase.IN_GAME;
     }
 
-    /** Forget the game, without claiming it ended. */
+    /** Drops the game and every signal tracked alongside it. */
     private void reset(String reason) {
         Debug.log("Reset ({})", reason);
 

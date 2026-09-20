@@ -57,7 +57,7 @@ public class AutoVoteTab extends ConfigTab {
         }
     }
 
-    /** One dropdown per row. */
+    /** A row per category of the game, each holding one dropdown. */
     private void addCategoryRows(ModConfig.AutoVoteConfig config, AutoVoteConfiguration configuration) {
         for (AutoVoteCategory category : configuration.categories()) {
             AbstractWidget dropdown = categoryDropdown(config, category);
@@ -83,7 +83,7 @@ public class AutoVoteTab extends ConfigTab {
                 return option;
             }
         }
-        // Saved slot no longer exists in the config; show the first option rather than nothing
+        // The saved slot is gone from the config, so fall back to the first option
         return category.options().getFirst();
     }
 
@@ -100,7 +100,7 @@ public class AutoVoteTab extends ConfigTab {
     }
 
     private static boolean isConfigurable(AutoVoteConfiguration configuration) {
-        // Retired games can't be joined; null (games not loaded) shows them rather than nothing
+        // Retired games are left out; an unknown one is shown, the games not being loaded yet
         Game game = GameRegistry.getInstance().byId(configuration.gameId());
         return game == null || game.active();
     }

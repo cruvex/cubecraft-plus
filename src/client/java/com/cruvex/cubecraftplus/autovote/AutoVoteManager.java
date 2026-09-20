@@ -30,24 +30,14 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Automatically votes in CubeCraft pre-game lobbies for the games defined in {@link GameVotes}.
- *
- * Tick-driven state machine: menus are populated slightly after they open, so it clicks only
- * once the target slot holds an item. States waiting for a menu also require a new container
- * id, because submenu titles can pass the main-menu check (e.g. EggWars' "Perk Voting") while
- * the previous menu is still up.
- *
- * The menu is read through {@link VoteMenu}: from the container packets when silent voting
- * is on, and off the open screen when it is off.
- */
+/** Automatically votes in CubeCraft pre-game lobbies for the games defined in {@link GameVotes}. */
 public class AutoVoteManager {
 
     private static AutoVoteManager instance;
 
     private static final String VOTING_ITEM_NAME = "Voting";
     private static final String MAIN_MENU_MARKER = "voting";
-    // Large chest plus player inventory; fewer slots means a different container
+    // Large chest plus player inventory
     private static final int MIN_MENU_SLOTS = 70;
     private static final int ARM_DELAY_TICKS = 2;
     private static final int RETURN_DELAY_TICKS = 2;
@@ -63,8 +53,7 @@ public class AutoVoteManager {
         IDLE,         // not in a votable pre-game lobby, or this round was already handled
         ARMED,        // voting item detected; short countdown before using it
         OPENING_MAIN, // waiting for the main voting menu; clicks the next category once populated
-        OPENING_SUB,  // waiting for the vote menu (category submenu, or the direct vote menu
-                      // for games without categories); clicks the vote option once populated
+        OPENING_SUB,  // waiting for the vote menu; clicks the vote option once populated
         VOTING        // vote clicked; short delay, then return to main menu or close
     }
 
@@ -74,13 +63,13 @@ public class AutoVoteManager {
     private int voteIndex;
     private List<GameVotes.VotePair> votes = List.of();
     private int votingHotbarSlot = -1;
-    // Menu we last clicked in, so a stale screen can't be re-clicked
+    // Menu we last clicked in
     private int lastContainerId = -1;
     private boolean attemptedThisRound;
     private boolean voteConfirmed;
-    // Snapshotted when arming, so the option cannot switch modes mid-round
+    // The silent option as it stood when this round armed
     private boolean silent;
-    // Redraws seen when the vote was clicked, so the return click can wait for the server
+    // Redraws the menu had when the vote was clicked
     private int voteRedraws;
 
     public static AutoVoteManager getInstance() {
@@ -94,7 +83,6 @@ public class AutoVoteManager {
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
         ScreenEvents.AFTER_INIT.register(this::onScreenInit);
         ClientReceiveMessageEvents.GAME.register(this::onGameMessage);
-        // A menu on another connection is dropped, not closed: its id means nothing here
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             RemoteMenu.getInstance().forget();
             reset("joined server");
@@ -129,13 +117,12 @@ public class AutoVoteManager {
 
     private void tickIdle(Minecraft client, LocalPlayer player) {
         Game game = GameManager.getInstance().getCurrentGame();
-        // Which slot holds the voting item is per-game, so resolve it before checking the item
         int hotbarSlot = GameVotes.hotbarSlotFor(game);
         boolean hasVotingItem = hotbarSlot >= 0
                 && isVotingItem(player.getInventory().getItem(hotbarSlot));
 
         if (!hasVotingItem) {
-            // The voting item disappearing means the round started or we left the lobby
+            // The item is gone, so the round started or we left the lobby
             if (attemptedThisRound || voteConfirmed) {
                 reset("voting item gone");
             }
@@ -153,7 +140,7 @@ public class AutoVoteManager {
         Debug.log("AutoVote: voting item detected for {}, arming", game.name());
         silent = config.silent;
         votingHotbarSlot = hotbarSlot;
-        // Select the slot now so the carried-item sync reaches the server before the use packet
+        // Selected a tick ahead of the use packet, so the server has the carried item by then
         player.getInventory().setSelectedSlot(hotbarSlot);
         delayTicks = ARM_DELAY_TICKS;
         setState(State.ARMED);
@@ -173,10 +160,7 @@ public class AutoVoteManager {
         setState(votes.get(0).hasSubmenu() ? State.OPENING_MAIN : State.OPENING_SUB);
     }
 
-    /**
-     * Uses the held voting item the way {@code Minecraft#startUseItem} does for a manual
-     * right click: the targeted block first, since the server may only react to that packet.
-     */
+    /** Uses the held voting item on the targeted block, then on air, the way a manual right click does. */
     private void useVotingItem(Minecraft client, LocalPlayer player) {
         player.getInventory().setSelectedSlot(votingHotbarSlot);
         lastContainerId = player.containerMenu.containerId;
@@ -193,7 +177,7 @@ public class AutoVoteManager {
         }
     }
 
-    /** The first use can be ignored (e.g. while still spawning in), so retry every second. */
+    /** Uses the voting item again once a second while no menu has opened, and reports whether it did. */
     private boolean retryUseIfNoMenu(Minecraft client, LocalPlayer player) {
         if (RemoteMenu.getInstance().isOpen() || blockedByScreen(client, silent)) return false;
         if (stateTicks % USE_RETRY_TICKS != 0) return false;
@@ -209,7 +193,7 @@ public class AutoVoteManager {
 
         GameVotes.VotePair vote = votes.get(voteIndex);
         VoteMenu menu = openMenu(expectedTitle(), true);
-        if (menu == null || !menu.hasItem(vote.categorySlot())) return; // retry next tick
+        if (menu == null || !menu.hasItem(vote.categorySlot())) return;
 
         menu.click(vote.categorySlot());
         lastContainerId = menu.containerId();
@@ -219,11 +203,11 @@ public class AutoVoteManager {
 
     private void tickOpeningSub(Minecraft client, LocalPlayer player) {
         GameVotes.VotePair vote = votes.get(voteIndex);
-        // Entry state for games without a category menu, so the use may need retrying here too
+        // The entry state for games without a category menu, so the use can still need retrying
         if (!vote.hasSubmenu() && retryUseIfNoMenu(client, player)) return;
 
         VoteMenu menu = openMenu(expectedTitle(), true);
-        if (menu == null || !menu.hasItem(vote.voteSlot())) return; // retry next tick
+        if (menu == null || !menu.hasItem(vote.voteSlot())) return;
 
         menu.click(vote.voteSlot());
         voteRedraws = RemoteMenu.getInstance().redraws();
@@ -253,7 +237,7 @@ public class AutoVoteManager {
         }
     }
 
-    /** The server redraws the menu once it has taken the vote, and a fixed delay races that. */
+    /** Whether the vote has been taken: the server's redraw when silent, a fixed delay otherwise. */
     private boolean returnReady() {
         return silent ? RemoteMenu.getInstance().redraws() > voteRedraws : --delayTicks <= 0;
     }
@@ -285,7 +269,6 @@ public class AutoVoteManager {
         }
     }
 
-    /** The menu title the current state is waiting for. */
     private Predicate<String> expectedTitle() {
         if (voteIndex >= votes.size()) return title -> false;
 
@@ -297,7 +280,6 @@ public class AutoVoteManager {
         };
     }
 
-    /** True while a vote flow is running. */
     public boolean isVoting() {
         return state != State.IDLE;
     }
@@ -307,6 +289,7 @@ public class AutoVoteManager {
         return silent && expectedTitle().test(title.toLowerCase(Locale.ROOT));
     }
 
+    /** The open menu when its title matches and it is big enough, optionally rejecting the one last clicked in. */
     @Nullable
     private VoteMenu openMenu(Predicate<String> titleMatcher, boolean requireNewContainer) {
         VoteMenu menu = currentMenu();
@@ -346,7 +329,7 @@ public class AutoVoteManager {
         this.stateTicks = 0;
     }
 
-    /** Ends the round, closing the menu if the server still has one open for us. */
+    /** Ends the round, closing the menu the server may still have open for us. */
     private void abort(String reason) {
         Debug.log("AutoVote: aborting ({})", reason);
         RemoteMenu.getInstance().close();

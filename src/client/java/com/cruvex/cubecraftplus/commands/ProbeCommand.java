@@ -57,7 +57,7 @@ public final class ProbeCommand {
         return 1;
     }
 
-    /** How many of each signal the session has seen. */
+    /** Prints how many of each signal the session has seen. */
     private static int summary(FabricClientCommandSource source) {
         SignalProbe probe = SignalProbe.getInstance();
         Map<String, Integer> counts = probe.counts();
