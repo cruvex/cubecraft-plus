@@ -6,11 +6,7 @@ import net.minecraft.world.level.GameType;
 
 public final class PlayerEvents {
 
-    /**
-     * The server respawned the client.
-     *
-     * @see net.minecraft.network.protocol.game.ClientboundRespawnPacket#dataToKeep()
-     */
+    /** The server respawned the client; see {@link net.minecraft.network.protocol.game.ClientboundRespawnPacket#dataToKeep()}. */
     public static final Event<Respawn> RESPAWN = EventFactory.createArrayBacked(
             Respawn.class,
             callbacks -> dataToKeep -> {

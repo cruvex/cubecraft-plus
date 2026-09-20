@@ -6,7 +6,7 @@ public abstract class Packet {
 
     public abstract void write(PacketBuffer buf);
 
-    /** Outbound-only packets never arrive, so they leave this alone. */
+    /** Handles an inbound packet; outbound-only packets never arrive and leave this alone. */
     public void handle(PacketHandler packetHandler) {
     }
 }

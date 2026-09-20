@@ -24,7 +24,7 @@ public class GameRegistry {
 
     private static GameRegistry instance;
 
-    // Swapped rather than mutated on reload: the client thread reads these while an HTTP thread writes
+    // Replaced on reload, never mutated: the client thread reads these while an HTTP thread writes
     private volatile Map<String, Game> gamesByName = Map.of();
     private volatile Map<Integer, Game> gamesById = Map.of();
 
@@ -47,7 +47,7 @@ public class GameRegistry {
         return gamesById.values();
     }
 
-    /** Last known good games, so game detection works at tick 0 with the API unreachable. */
+    /** Fills in from the last good fetch, falling back to the copy bundled in the jar. */
     public void seed() {
         List<Game> cached = ApiCache.getInstance().read(CACHE, GAMES, false);
         List<Game> games = cached.isEmpty() ? ApiCache.getInstance().readBundled(BUNDLED, GAMES) : cached;
@@ -93,7 +93,7 @@ public class GameRegistry {
         }
     }
 
-    /** Both sides of the lookup go through this, so aliases with spaces or capitals resolve. */
+    /** Lowercases and turns spaces into underscores; both sides of the lookup go through it. */
     private static String normalize(String name) {
         return name.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
     }

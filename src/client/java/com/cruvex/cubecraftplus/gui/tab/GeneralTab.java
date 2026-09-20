@@ -19,7 +19,7 @@ public class GeneralTab extends ConfigTab {
         CycleButton<Boolean> highlight = toggle(LANG_PREFIX + "chestfinder.highlight",
                 LANG_PREFIX + "chestfinder.highlight.tooltip",
                 chestFinder.highlight, value -> chestFinder.highlight = value);
-        // The highlight only draws while the finder itself is on
+        // Greyed out while the finder itself is off, the highlight only drawing with it
         highlight.active = chestFinder.enabled;
 
         list.addBig(toggle(LANG_PREFIX + "chestfinder", LANG_PREFIX + "chestfinder.tooltip",

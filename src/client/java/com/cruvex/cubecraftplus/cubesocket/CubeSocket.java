@@ -27,10 +27,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-/**
- * Connection to Cubepanion's CubeSocket. The API only accepts leaderboard submissions from
- * clients it has seen connect here, which is what makes falsified data harder to upload.
- */
+/** Connection to Cubepanion's CubeSocket, which the API requires before it accepts leaderboard submissions. */
 public class CubeSocket {
 
     private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
@@ -76,7 +73,7 @@ public class CubeSocket {
         scheduler.scheduleWithFixedDelay(this::checkConnection, 0L, 5L, TimeUnit.SECONDS);
     }
 
-    /** Shared with the session, so a reconnect doesn't leave a scheduler thread behind. */
+    /** Runs a task on the socket's own scheduler, which the session shares rather than starting one. */
     public void schedule(Runnable task, long delay, TimeUnit unit) {
         scheduler.schedule(task, delay, unit);
     }
@@ -143,7 +140,7 @@ public class CubeSocket {
     }
 
     private void disconnect(String reason) {
-        // Spread reconnects out so everyone kicked at once doesn't come back at once
+        // Up to a minute of jitter, so everyone kicked at once doesn't come back at once
         long delay = (long) (1000.0 * Math.random() * 60.0);
         this.timeNextConnect = Instant.now().toEpochMilli() + 10000L + delay;
         if (this.state == CubeSocketState.OFFLINE) {

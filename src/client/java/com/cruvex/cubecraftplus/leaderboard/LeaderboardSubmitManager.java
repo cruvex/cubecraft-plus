@@ -33,11 +33,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Reads CubeCraft's leaderboard menus while the player pages through them and submits a
- * complete leaderboard to the Cubepanion API. Tick-driven like {@link com.cruvex.cubecraftplus.autovote.AutoVoteManager},
- * because the server fills a menu a few ticks after the screen opens.
- */
+/** Reads CubeCraft's leaderboard menus as the player pages through them, and submits a complete one to the API. */
 public class LeaderboardSubmitManager {
 
     private static final Logger LOGGER = CubeCraftPlusClient.LOGGER;
@@ -57,7 +53,7 @@ public class LeaderboardSubmitManager {
     private final Set<LeaderboardRow> rows = new LinkedHashSet<>();
     private Game game;
 
-    // The menu being watched, so each one is parsed only once
+    // The menu being watched; each one is parsed only once
     private int menuContainerId = -1;
     private boolean menuHandled;
     private int menuTicks;
@@ -98,7 +94,7 @@ public class LeaderboardSubmitManager {
         if (!ConfigManager.getInstance().getConfig().leaderboardSubmit.enabled) return;
         if (!configuration.canSubmit()) return;
 
-        // Forget the menu once it closes, so a reused container id isn't taken for a parsed one
+        // Forgotten once it closes, so a reused container id is not taken for a parsed menu
         if (!(client.screen instanceof ContainerScreen screen)) {
             menuContainerId = -1;
             return;
@@ -132,7 +128,7 @@ public class LeaderboardSubmitManager {
     }
 
     private void readPage(String title, List<ItemStack> heads) {
-        // Drop the colours and decoration the server puts around the title
+        // Strips the colours and decoration the server puts around the title
         String cleaned = title.replaceAll("[^a-zA-Z0-9 ()/]", "").trim();
         int marker = cleaned.indexOf(TITLE_MARKER);
         if (marker <= 0) return;
@@ -158,7 +154,7 @@ public class LeaderboardSubmitManager {
             return;
         }
 
-        // Pages of different leaderboards can't be mixed into one submission
+        // Start over on another game: one submission holds one leaderboard
         if (!pageGame.equals(game)) {
             clearCollected();
             game = pageGame;
@@ -198,7 +194,7 @@ public class LeaderboardSubmitManager {
             return null;
         }
 
-        // Menu decoration can read as a place with a nonsense position
+        // Menu decoration can read as a place, with a position outside the leaderboard
         if (position < 1 || position > playerCount) {
             Debug.log("Leaderboard: skipping {}, place {} is outside the leaderboard", player, position);
             return null;
@@ -215,7 +211,7 @@ public class LeaderboardSubmitManager {
         List<LeaderboardRow> entries = List.copyOf(rows);
         String uuid = player.getStringUUID();
 
-        // Clear up front: a failed submit is retried by paging through the leaderboard again
+        // Cleared up front; a failed submit is retried by paging through the leaderboard again
         clearCollected();
 
         LOGGER.info("Submitting {} leaderboard places for {}", entries.size(), submittingFor.name());
@@ -238,7 +234,7 @@ public class LeaderboardSubmitManager {
                         .withStyle(ChatFormatting.GREEN));
     }
 
-    /** The chest part of the menu only — heads in the inventory below aren't places. */
+    /** Heads in the chest part of the menu only; the ones in the inventory below are not places. */
     private static List<ItemStack> playerHeads(ChestMenu menu) {
         List<ItemStack> heads = new ArrayList<>();
         int chestSlots = Math.min(menu.getRowCount() * 9, menu.slots.size());

@@ -65,9 +65,9 @@ public class FriendsManager {
     private static final String ONLINE = "Online";
     private static final String OFFLINE = "Offline";
 
-    /** Share a cooldown with the page queries; /fmsg does not. */
+    /** Commands that share a cooldown with the page queries; /fmsg does not. */
     private static final Set<String> COMMANDS = Set.of("f", "fl", "friend", "friends");
-    /** Gives the proxy time to settle before the first commands after joining. */
+    /** How long after joining to wait before the first commands, for the proxy to settle. */
     private static final long JOIN_DELAY_MS = 5000;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -77,7 +77,7 @@ public class FriendsManager {
     private List<Friend> friends = List.of();
     private @Nullable CompletableFuture<List<Friend>> refreshing;
     private @Nullable CompletableFuture<Void> checkingOnline;
-    /** Counts friend messages, so a load can tell whether the list moved under its pages. */
+    /** Friend messages seen, which a load compares before and after to spot a list that moved. */
     private int friendMessages;
     private long joinedAt;
 
@@ -88,7 +88,7 @@ public class FriendsManager {
     private final List<Event> events = List.of(
             new Event(JOINED, "{} came online", name -> setOnline(name, true)),
             new Event(LEFT, "{} went offline", name -> setOnline(name, false)),
-            // Accepting is something they just did, so they are online; the player accepting says nothing
+            // They just accepted, so they are online; the player accepting says nothing about them
             new Event(THEY_ACCEPTED, "{} accepted your request", name -> add(new Friend(name, true, ONLINE))),
             new Event(YOU_ACCEPTED, "you accepted {}'s request", name -> add(new Friend(name, false, ""))),
             new Event(REMOVED_YOU, "{} removed you", this::remove),
@@ -115,7 +115,7 @@ public class FriendsManager {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> friends = List.of()));
     }
 
-    /** Replaced rather than modified, so a changed reference means a changed list. */
+    /** Replaced on every change, never modified, so a changed reference means a changed list. */
     public List<Friend> getFriends() {
         return friends;
     }
@@ -124,7 +124,7 @@ public class FriendsManager {
         return refreshing != null && !refreshing.isDone();
     }
 
-    /** Why a refresh failed, for the player: unwraps the CompletionException a failed page arrives in. */
+    /** Why a refresh failed, in words for the player, unwrapping the CompletionException it arrives in. */
     public static String failureReason(Throwable error) {
         Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
         return cause instanceof CancellationException ? "disconnected" : cause.getMessage();
@@ -138,7 +138,7 @@ public class FriendsManager {
         return refreshing;
     }
 
-    /** A load the list changed under runs once more, since shifted pages can skip a friend. */
+    /** Pages through the whole list, and runs once more when it changed underneath. */
     private CompletableFuture<List<Friend>> walk(boolean retried) {
         if (!CubeCraftManager.getInstance().isOnCubeCraft()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Not on CubeCraft"));
@@ -152,7 +152,7 @@ public class FriendsManager {
             int listed = pages.stream().mapToInt(page -> page.friends().size()).sum();
             if (friendMessages == messagesBefore && listed == loaded.size()) {
                 persist();
-                // While the names are current, so a later rename cannot point a head at a stranger
+                // Resolved now, while the names are known to be current
                 HeadResolver.getInstance().resolve(loaded.stream().map(Friend::name).toList());
                 return CompletableFuture.completedFuture(loaded);
             }
@@ -173,7 +173,7 @@ public class FriendsManager {
         applyOnline(online(walked));
     }
 
-    /** Re-reads where online friends are, which join and leave messages do not say. */
+    /** Re-reads which friends are online and where, which join and leave messages do not say. */
     public void checkOnline() {
         if (isRefreshing() || isCheckingOnline() || System.currentTimeMillis() - joinedAt < JOIN_DELAY_MS) return;
         if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
@@ -214,7 +214,7 @@ public class FriendsManager {
                 })
                 .toList();
 
-        // A new list rebuilds an open screen's rows, so only replace it when something changed
+        // Only replaced when something changed; a new list rebuilds an open screen's rows
         if (!updated.equals(friends)) {
             friends = updated;
             Debug.log("Friends: {} friends online", online.size());
@@ -222,7 +222,7 @@ public class FriendsManager {
     }
 
     private void onGameMessage(Component message, boolean overlay) {
-        // Other servers word their friend messages the same, and a stray add would be saved
+        // CubeCraft only: other servers word their friend messages the same way
         if (overlay || !CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
         String text = message.getString();
@@ -242,7 +242,7 @@ public class FriendsManager {
         }
     }
 
-    /** Only names are saved, so a status change needs no write. */
+    /** Sets a friend's online state and status; nothing is persisted, since only names are saved. */
     private void setOnline(String name, boolean online) {
         if (!known(name)) {
             Debug.log("Friends: {} is not in the list", name);
@@ -284,7 +284,7 @@ public class FriendsManager {
 
         UUID account = account();
         if (account != null) {
-            // Last session's names until the join load replaces them
+            // Last session's names, until the load below replaces them
             friends = loadSaved(account).stream().map(name -> new Friend(name, false, "")).toList();
         }
 
@@ -369,7 +369,7 @@ public class FriendsManager {
         return pages.stream().flatMap(page -> page.friends().stream()).filter(Friend::online).toList();
     }
 
-    /** Merges pages by name, since a friend coming online mid-walk can land on two pages. */
+    /** Merges the pages by name, a friend coming online mid-walk being able to land on two. */
     private static List<Friend> merge(List<Page> pages) {
         Map<String, Friend> byName = new LinkedHashMap<>();
         for (Page page : pages) {
@@ -380,7 +380,7 @@ public class FriendsManager {
         return List.copyOf(byName.values());
     }
 
-    /** A late reply to another page can be claimed as this one, so the header has to agree. */
+    /** Reads one page, rejecting a reply whose header names another page or holds too few lines. */
     private static Page parsePage(ChatQueryManager.Reply reply, int expected) {
         Matcher counter = PAGE.matcher(reply.header().getString());
         boolean paged = counter.find();
@@ -390,7 +390,7 @@ public class FriendsManager {
         if (number != expected) {
             throw new IllegalStateException("Asked for friends page " + expected + ", got " + number);
         }
-        // Only the last page may be short, so a short earlier one lost a line that did not match
+        // Only the last page may be short
         if (number < total && reply.lines().size() != LINES_PER_PAGE) {
             throw new IllegalStateException("Friends page " + number + " had " + reply.lines().size()
                     + " lines, expected " + LINES_PER_PAGE);

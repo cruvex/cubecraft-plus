@@ -28,7 +28,7 @@ import java.util.Locale;
 public class FriendsScreen extends Screen {
 
     private static final int HEADER_HEIGHT = 64;
-    /** With the refresh button beside it, the search row is still the 200 wide the filter used to be. */
+    /** Leaves the search row 200 wide in total, with the refresh button beside it. */
     private static final int FILTER_WIDTH = 176;
     private static final int BUTTON_SIZE = 20;
     private static final int ICON_SIZE = 20;
@@ -51,7 +51,7 @@ public class FriendsScreen extends Screen {
     /** The list the rows were built from; the manager replaces it on every change. */
     private List<Friend> shown = List.of();
     private @Nullable Component failure;
-    /** 0 until the first tick, so statuses are read fresh as soon as the screen opens. */
+    /** 0 until the first tick, so the statuses are read as soon as the screen opens. */
     private long nextOnlineCheckAt;
 
     public FriendsScreen(Screen parent) {
@@ -140,7 +140,7 @@ public class FriendsScreen extends Screen {
 
         Component text;
         if (refreshing) {
-            // A running refresh, from here or /ccp friends refresh, replaces the last one's failure
+            // A refresh from anywhere clears the last one's failure
             failure = null;
             text = Component.translatable("cubecraftplus.friends.refreshing").withStyle(ChatFormatting.GRAY);
         } else if (failure != null) {
@@ -150,7 +150,7 @@ public class FriendsScreen extends Screen {
             text = Component.translatable("cubecraftplus.friends.summary", shown.size(), online).withStyle(ChatFormatting.GRAY);
         }
 
-        // The widget sizes itself to its text, so the header needs centring again
+        // The widget sizes itself to its text, so the header is centred again
         if (!text.equals(summary.getMessage())) {
             summary.setMessage(text);
             repositionElements();

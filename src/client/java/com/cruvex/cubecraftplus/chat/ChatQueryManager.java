@@ -24,13 +24,13 @@ import java.util.regex.Pattern;
 /** Runs server commands one at a time and captures their chat replies. Client thread only. */
 public class ChatQueryManager {
 
-    /** Generous: a healthy reply takes ~50ms, but CubeCraft has taken seconds under load. */
+    /** How long to wait for a reply, where a healthy one takes ~50ms. */
     private static final long TIMEOUT_MS = 10000;
     /** How long a reply to a query that gave up is still swallowed instead of reaching chat. */
     private static final long LATE_MS = 20000;
-    /** Silence that ends a reply, since CubeCraft sends no footer. */
+    /** Silence that ends a reply; CubeCraft sends no footer. */
     private static final long QUIET_MS = 250;
-    /** CubeCraft rejects a command within ~1s of the last accepted one on its cooldown. */
+    /** Gap CubeCraft wants between commands, below which it turns them away. */
     private static final long COMMAND_INTERVAL_MS = 1100;
     private static final int MAX_ATTEMPTS = 3;
     private static final Pattern TOO_FAST = Pattern.compile("^You are executing this command too fast!");
@@ -71,7 +71,7 @@ public class ChatQueryManager {
     private long nextSendAt;
     /** Whether the running cooldown was started by a query rather than the player. */
     private boolean queryCooldown;
-    /** Keeps our own sends from being held. */
+    /** True while this class is the one sending, so its own commands are not held. */
     private boolean sending;
 
     // The head's reply so far; sentAt is 0 while unsent
@@ -93,7 +93,7 @@ public class ChatQueryManager {
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
         // Clicked commands skip this event; ClientPacketListenerMixin holds those
         ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !hold(command));
-        // Or the next server's chat is swallowed by a reply this one never sent; can fire off-thread
+        // Dropped on disconnect, on the client thread since the event can fire off it
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(late::clear));
     }
 
@@ -223,7 +223,7 @@ public class ChatQueryManager {
         }
     }
 
-    /** Hides a reply nothing is waiting for any more, which would otherwise land in chat. */
+    /** Hides a reply that turned up after its query gave up; returns whether it did. */
     private boolean swallowLate(String text) {
         long now = System.currentTimeMillis();
         late.removeIf(entry -> now > entry.until);
@@ -268,7 +268,7 @@ public class ChatQueryManager {
         clearReply();
     }
 
-    /** Sends the head again once the cooldown allows, keeping the attempts it has used. */
+    /** Clears the reply so the head is sent again, keeping the attempts it has used. */
     private void retry() {
         sentAt = 0;
         header = null;

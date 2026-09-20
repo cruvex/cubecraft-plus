@@ -37,7 +37,7 @@ public class ModConfig {
         public Map<String, Integer> slots = new HashMap<>();
     }
 
-    /** Repairs fields Gson left null, so nothing downstream has to null-check. */
+    /** Fills in any field Gson left null, so nothing downstream has to null-check. */
     public void validate() {
         if (leaderboardSubmit == null) leaderboardSubmit = new LeaderboardSubmitConfig();
         if (chestFinder == null) chestFinder = new ChestFinderConfig();

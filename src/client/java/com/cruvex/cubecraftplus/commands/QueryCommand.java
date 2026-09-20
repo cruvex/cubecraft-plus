@@ -37,7 +37,7 @@ public final class QueryCommand {
                         .then(ClientCommands.argument("commands", StringArgumentType.greedyString())
                                 .executes(ctx -> dump(ctx.getSource(),
                                         StringArgumentType.getString(ctx, "commands"), 0))))
-                // Own literal: under dump it would be ambiguous with the greedy argument
+                // Its own literal: under dump it would be ambiguous with the greedy argument
                 .then(ClientCommands.literal("spaced")
                         .then(ClientCommands.argument("ms", IntegerArgumentType.integer(0, 5000))
                                 .then(ClientCommands.argument("commands", StringArgumentType.greedyString())
@@ -68,7 +68,7 @@ public final class QueryCommand {
         String label = "/" + String.join(", /", sent) + (everyMs > 0 ? " every " + everyMs + "ms" : " at once");
         Path path = ChatDump.start(label, windowMs);
 
-        // Bypasses queries, so nothing is matched or hidden
+        // Sent directly, past the queries, so nothing is matched or hidden
         Minecraft client = source.getClient();
         for (int i = 0; i < sent.size(); i++) {
             String command = sent.get(i);
@@ -128,7 +128,7 @@ public final class QueryCommand {
         }
     }
 
-    /** Plain text, so the message's click events aren't live here. */
+    /** One numbered row of plain text, leaving the message's own click events behind. */
     private static Component row(String label, Component message) {
         MutableComponent row = Component.literal(String.format(Locale.ROOT, "%2s ", label))
                 .withStyle(ChatFormatting.DARK_GRAY)

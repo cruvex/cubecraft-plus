@@ -32,7 +32,7 @@ public class ChestFinderManager {
     final String chestMessage = "A chest has been hidden somewhere in the lobby with some goodies inside!";
 
     private static final int POLL_INTERVAL_TICKS = 20;
-    private static final int SEARCH_TICKS = 100; // Search for 5 seconds after chest message
+    private static final int SEARCH_TICKS = 100; // 5 seconds
 
     private static final int HIGHLIGHT_STROKE = 0xFF55FF55;
     private static final int HIGHLIGHT_FILL = 0x4055FF55;
@@ -41,7 +41,7 @@ public class ChestFinderManager {
     private boolean reportNotFound;
     private BlockPos foundChest;
 
-    // Swapped rather than mutated on reload: the client thread reads this while an HTTP thread writes
+    // Replaced on reload, never mutated: the client thread reads this while an HTTP thread writes
     private volatile List<ChestLocation> locations = List.of();
 
     static ChestFinderManager instance;
@@ -56,9 +56,8 @@ public class ChestFinderManager {
     public void init() {
         ClientReceiveMessageEvents.GAME.register((message, _) -> onMessage(message));
         ClientTickEvents.END_CLIENT_TICK.register(_ -> onEndTick());
-        // The announcement isn't always sent, so also look whenever we land in a lobby
+        // Searched on landing in a lobby too, the announcement not always being sent
         CubeEvents.GAME_JOIN.register(this::onGameJoin);
-        // Reset search and highlight on server switch
         ClientPlayConnectionEvents.JOIN.register((_, _, _) -> {
             searchTicksLeft = 0;
             foundChest = null;
@@ -75,7 +74,7 @@ public class ChestFinderManager {
                     }
 
                     locations = List.copyOf(fetched);
-                    // The endpoint only serves the active season, so every entry shares it
+                    // Any entry's season will do: the endpoint only serves the active one
                     String season = fetched.getFirst().seasonName();
                     Debug.info("Loaded {} chest locations for season {}", fetched.size(), season);
                 })
@@ -98,7 +97,7 @@ public class ChestFinderManager {
         if (!ConfigManager.getInstance().getConfig().chestFinder.enabled) return;
         if (!game.isLobby()) return;
 
-        // Most lobbies have no chest, so a miss here isn't worth reporting
+        // Silent on a miss: most lobbies have no chest
         startSearch(false);
     }
 
@@ -106,11 +105,10 @@ public class ChestFinderManager {
         startSearch(true);
     }
 
-    /** The locations are CubeCraft's lobbies', so searching anywhere else can only mislead. */
+    /** Searches for {@value #SEARCH_TICKS} ticks, since the chest's chunk may not be loaded yet. */
     private void startSearch(boolean reportNotFound) {
         if (!CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
-        // The chest might not be loaded in when the search starts, so we search for a set period
         searchTicksLeft = SEARCH_TICKS;
         this.reportNotFound = reportNotFound;
         foundChest = null;
@@ -156,17 +154,17 @@ public class ChestFinderManager {
         }
 
         ClientLevel level = Minecraft.getInstance().level;
-        // Drop the highlight once the chest is claimed, but keep it while its chunk is unloaded
+        // Dropped once the chest is claimed, but kept while its chunk is unloaded
         if (level == null || (level.isLoaded(foundChest) && level.getBlockState(foundChest).getBlock() != Blocks.CHEST)) {
             foundChest = null;
             return;
         }
 
-        // Tick gizmos only live for one tick, so re-emit every tick to keep the box drawn
+        // Re-emitted every tick, a gizmo only living for the tick it was made on
         Gizmos.cuboid(foundChest, 0.02F, GizmoStyle.strokeAndFill(HIGHLIGHT_STROKE, 2.5F, HIGHLIGHT_FILL))
                 .setAlwaysOnTop();
 
-        // Line width is in screen pixels, so a tall beam stays visible from far away
+        // A 4-pixel beam, the width being in screen pixels rather than blocks
         Vec3 beamStart = Vec3.atBottomCenterOf(foundChest.above());
         Gizmos.line(beamStart, beamStart.add(0, 255, 0), HIGHLIGHT_STROKE, 4F)
                 .setAlwaysOnTop();
@@ -188,7 +186,7 @@ public class ChestFinderManager {
         for (ChestLocation location : locations) {
             BlockPos pos = new BlockPos(location.x(), location.y(), location.z());
 
-            // out of range or not loaded yet, not absent
+            // Out of range or not loaded yet, rather than absent
             if (!level.isLoaded(pos)) {
                 continue;
             }

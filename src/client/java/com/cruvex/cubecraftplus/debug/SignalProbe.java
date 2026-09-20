@@ -44,26 +44,21 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/**
- * Records every signal that could mark a game boundary, alongside what the mod made of it, to
- * {@code cubecraft-plus/debug/signals-*.log}. Observes only, and never writes to chat unless
- * {@code /ccp probe chat} asks. On by default in development, {@code /ccp probe on} elsewhere.
- */
+/** Records every signal that could mark a game boundary, and what the mod made of it, to debug/signals-*.log. */
 public class SignalProbe {
 
     /** Below this a position packet is an ordinary correction, not a move between arenas. */
     private static final double TELEPORT_DISTANCE = 16.0;
     private static final int CHAT_LIMIT = 140;
     private static final int DETAIL_LIMIT = 90;
-    /** How many of each noisy signal to keep after a boundary, where they are informative. */
+    /** How many of each noisy signal to log after a boundary, before muting it until the next one. */
     private static final int TEAM_BUDGET = 30;
     private static final int ACTION_BAR_BUDGET = 4;
-    /** Players stream in and out constantly in a lobby; a line every few seconds is plenty. */
     private static final long PLAYER_COUNT_INTERVAL = 3000;
 
     /** Sidebar line CubeCraft puts the server id in, e.g. "05/08/26 (EU12B)". */
     private static final Pattern SERVER_ID_PATTERN = Pattern.compile("\\d{2}/\\d{2}/\\d{2} \\((.{2,10})\\)");
-    /** Real rosters are colour-named teams; all-caps alone also matches the lobby's NPC team. */
+    /** Colour-named teams, which is how CubeCraft names the real rosters. */
     private static final Pattern ROSTER_TEAM_PATTERN = Pattern.compile(
             "(?:DARK_|LIGHT_)?(?:RED|BLUE|GREEN|YELLOW|AQUA|CYAN|PINK|MAGENTA|ORANGE|PURPLE"
                     + "|WHITE|BLACK|GRAY|GREY|LIME|BROWN|GOLD)");
@@ -76,7 +71,7 @@ public class SignalProbe {
     /** Team assignment, e.g. "You have joined Light Blue." */
     private static final Pattern TEAM_JOIN_PATTERN =
             Pattern.compile("You have joined " + CHAT_COLOUR + "\\.");
-    /** Party membership and party chat, which share the "You have joined" phrasing with teams. */
+    /** Party membership and party chat, which share the "You have joined" phrasing with team assignment. */
     private static final Pattern PARTY_PATTERN = Pattern.compile(
             "You have joined .+'s party!"
                     + "|You have received a party invite from .+"
@@ -103,7 +98,7 @@ public class SignalProbe {
 
     private static SignalProbe instance;
 
-    /** Development runs are the ones started to look at this, so they get it for free. */
+    /** On by default in development; elsewhere {@code /ccp probe on} turns it on. */
     private static volatile boolean enabled = FabricLoader.getInstance().isDevelopmentEnvironment();
 
     private final SignalLog log = new SignalLog(this::context);
@@ -144,7 +139,7 @@ public class SignalProbe {
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> log.close());
 
-        // What the live detection concluded, timestamped alongside the raw signals
+        // The mod's own conclusions, timestamped alongside the raw signals
         CubeEvents.CUBE_JOIN.register(() -> signal("CUBE_JOIN", ""));
         CubeEvents.GAME_JOIN.register(game -> signal("GAME_JOIN", "game={}", game.name()));
         CubeEvents.GAME_START.register(game -> signal("GAME_START", "game={}", game.name()));
@@ -178,7 +173,7 @@ public class SignalProbe {
         return mirrorToChat;
     }
 
-    /** Operator's note in the log, for pinning what actually happened on screen to a time. */
+    /** Writes a note of the player's own into the log, timestamped like any signal. */
     public void mark(String note) {
         signal("MARK", "{}", note);
     }
@@ -202,7 +197,6 @@ public class SignalProbe {
         if (objective == null) return "no sidebar";
 
         String title = objective.getDisplayName().getString();
-        // Rows carry newlines of their own, which would break the one-line-per-signal format
         String rows = scoreboard.listPlayerScores(objective).stream()
                 .filter(entry -> !entry.isHidden())
                 .sorted(Comparator.comparingInt(PlayerScoreEntry::value).reversed())
@@ -224,7 +218,7 @@ public class SignalProbe {
         connections++;
         connectedAt = System.currentTimeMillis();
         resetPerServer();
-        // Deliberately not gated on being on CubeCraft: leaving it is worth a line too
+        // Logged off CubeCraft too, unlike the rest: leaving is worth a line
         signal("CONNECT", "server={} cubecraft={}", Util.getServerIp(client), CubeCraftManager.getInstance().isOnCubeCraft());
     }
 
@@ -276,10 +270,9 @@ public class SignalProbe {
         signal("GAME_EVENT", "{} param={}", name, packet.getParam());
     }
 
-    /** The moves between lobby, pre-game lobby and cage all show up as a long jump. */
+    /** Logs absolute jumps over {@value #TELEPORT_DISTANCE} blocks, which is how a move between arenas arrives. */
     public void onPlayerPosition(ClientboundPlayerPositionPacket packet) {
         if (!active()) return;
-        // Relative packets nudge the player around; only absolute jumps are moves
         if (!packet.relatives().isEmpty()) return;
 
         Vec3 to = packet.change().position();
@@ -302,7 +295,7 @@ public class SignalProbe {
                 objectiveMethod(packet.getMethod()), packet.getObjectiveName(), title, parseGame(title));
     }
 
-    /** The sidebar being pointed at another objective is how a game handed out in place shows up. */
+    /** A display slot being pointed at another objective, which is how a game handed out in place arrives. */
     public void onDisplayObjective(ClientboundSetDisplayObjectivePacket packet) {
         if (!active()) return;
 
@@ -310,7 +303,7 @@ public class SignalProbe {
         signal("DISPLAY_SLOT", "slot={} objective={}", packet.getSlot(), packet.getObjectiveName());
     }
 
-    /** Scores are the sidebar rows; the snapshot on the next tick reports what they became. */
+    /** Scores are the sidebar rows, so the next tick logs a snapshot instead of this. */
     public void onScoreChanged() {
         if (!active()) return;
         sidebarDirty = true;
@@ -336,7 +329,7 @@ public class SignalProbe {
         boolean roster = ROSTER_TEAM_PATTERN.matcher(name).matches();
         trackRoster(name, roster);
 
-        // Nametag and sidebar helper teams arrive in the hundreds, so they wait for a boundary
+        // Nametag and sidebar helper teams arrive in the hundreds, so they come out of a budget
         if (!roster) {
             if (teamBudget <= 0) return;
             if (--teamBudget == 0) {
@@ -356,12 +349,12 @@ public class SignalProbe {
 
         String previous = serverId;
         serverId = matcher.group(1);
-        // Budgets are per game server: the updates right after a switch are the ones to keep
+        // Budgets are per game server
         resetBudgets();
         signal("SERVER_ID", "{} (was '{}')", serverId, previous);
     }
 
-    /** Colour-named teams are the real rosters, and they only arrive once a game starts. */
+    /** Logs the first colour-named team of the game, which is the roster being handed out. */
     private void trackRoster(String teamName, boolean roster) {
         if (rosterSeen || !roster) return;
 
@@ -416,7 +409,7 @@ public class SignalProbe {
         trackPlayerCount(client);
     }
 
-    /** One snapshot per tick, only when the layout changed; digits are masked so timers are not news. */
+    /** Logs one snapshot a tick, and only when the layout changed with its digits masked out. */
     private void flushSidebar() {
         if (!sidebarDirty) return;
         sidebarDirty = false;
@@ -464,7 +457,7 @@ public class SignalProbe {
         actionBarBudget = ACTION_BAR_BUDGET;
     }
 
-    /** What the live detection would make of a sidebar title right now. */
+    /** The game the registry matches to a sidebar title, the way the live detection reads it. */
     private static String parseGame(String title) {
         String cleaned = title.replaceAll("[^a-zA-Z .]", "").trim();
         if (cleaned.isEmpty()) return "none";
@@ -479,8 +472,7 @@ public class SignalProbe {
                 serverId.isEmpty() ? "?" : serverId, connections);
     }
 
-    // Synchronized because a disconnect can be reported from the netty thread, while
-    // everything else arrives on the client thread
+    // Synchronized: a disconnect is reported from the netty thread, everything else from the client thread
     private synchronized void signal(String type, String message, Object... args) {
         if (!enabled) return;
 
@@ -500,7 +492,7 @@ public class SignalProbe {
         Component line = Component.literal("[" + type + "] ").withStyle(ChatFormatting.DARK_AQUA)
                 .append(Component.literal(detail).withStyle(ChatFormatting.GRAY));
 
-        // Signals can arrive off the client thread (disconnect), so always hop over
+        // Signals can arrive off the client thread, so always hop over
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
             if (client.player != null) {

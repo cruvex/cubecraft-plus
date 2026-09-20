@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Records server chat as raw component JSON to debug/chat-*.log, showing a reply's real structure. */
+/** Records server chat as raw component JSON to debug/chat-*.log. */
 public final class ChatDump {
 
     private static final int TEXT_LIMIT = 60;
@@ -39,7 +39,7 @@ public final class ChatDump {
     private static long endsAt;
     private static int count;
 
-    /** Starts a recording lasting {@code windowMs}; call before sending anything. */
+    /** Starts a recording lasting {@code windowMs}, and returns the file it writes to. */
     public static Path start(String label, long windowMs) {
         Path file = ModPaths.debugLog("chat");
         path = file;
@@ -55,7 +55,7 @@ public final class ChatDump {
         write("\n# sent /" + command + " at +" + (System.currentTimeMillis() - startedAt) + "ms");
     }
 
-    /** Called for every server chat message, before a query can hide it. */
+    /** Writes one message to the dump and summarises it in chat; called before a query can hide it. */
     public static void onServerMessage(Component message) {
         if (!recording()) return;
 

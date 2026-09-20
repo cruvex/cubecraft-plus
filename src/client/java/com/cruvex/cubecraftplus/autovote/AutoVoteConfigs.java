@@ -22,7 +22,7 @@ public class AutoVoteConfigs {
 
     private static AutoVoteConfigs instance;
 
-    // Swapped rather than mutated on reload: the client thread reads this while an HTTP thread writes
+    // Replaced on reload, never mutated: the client thread reads this while an HTTP thread writes
     private volatile List<AutoVoteConfiguration> configurations = List.of();
 
     public static AutoVoteConfigs getInstance() {
@@ -49,7 +49,7 @@ public class AutoVoteConfigs {
         return null;
     }
 
-    /** The cache is version checked: the copy bundled in a new release can be newer than it. */
+    /** Fills in from the version-checked cache, falling back to the copy bundled in the jar. */
     public void seed() {
         List<AutoVoteConfiguration> cached = sanitize(ApiCache.getInstance().read(CACHE, CONFIGS, true));
         configurations = cached.isEmpty() ? sanitize(ApiCache.getInstance().readBundled(BUNDLED, CONFIGS)) : cached;
@@ -78,7 +78,7 @@ public class AutoVoteConfigs {
                 });
     }
 
-    /** Drops malformed entries, so nothing downstream null-checks or bounds-checks a remote number. */
+    /** Drops entries with a missing field or an out-of-range slot. */
     private static List<AutoVoteConfiguration> sanitize(@Nullable List<AutoVoteConfiguration> configurations) {
         if (configurations == null) {
             return List.of();

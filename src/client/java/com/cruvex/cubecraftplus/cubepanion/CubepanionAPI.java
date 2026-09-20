@@ -30,7 +30,7 @@ public class CubepanionAPI {
     private static final String BASE_URL = "https://cubepanion.ameliah.art/api";
     private static final String BASE_URL_V2 = BASE_URL + "/v2";
 
-    // Served from the repo rather than the API, so adding a game only takes a commit there
+    // Served from Cubepanion's repo rather than its API
     private static final String AUTO_VOTE_CONFIG_URL =
             "https://raw.githubusercontent.com/Fesaa/Cubepanion/refs/heads/main/config/auto_vote.json";
 
@@ -92,7 +92,7 @@ public class CubepanionAPI {
                 request.uri(), game.name(), game.id(), entries.size(), playerUuid);
         LOGGER.debug("Leaderboard submit body: {}", json);
 
-        // Submissions are queued, so success is 202 rather than 200
+        // 202, not 200: submissions are queued
         return send(request, 202).thenAccept(body -> {});
     }
 

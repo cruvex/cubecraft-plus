@@ -14,12 +14,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A chest menu the server has open for us, tracked from packets instead of from a screen.
- * Nothing is drawn and {@code player.containerMenu} is never assigned. One menu at a time,
- * written only by {@link com.cruvex.cubecraftplus.mixins.ContainerMenuMixin} on the client
- * thread.
- */
+/** A chest menu the server has open for us, tracked from packets instead of from a screen: nothing is drawn. */
 public final class RemoteMenu implements VoteMenu {
 
     private static RemoteMenu instance;
@@ -65,7 +60,7 @@ public final class RemoteMenu implements VoteMenu {
         this.items.set(slot, item);
     }
 
-    /** Takes the server closing a menu, and reports whether it was ours. */
+    /** Returns whether the menu the server closed was ours. */
     public boolean closedByServer(int containerId) {
         if (containerId != this.containerId) return false;
 
@@ -102,10 +97,7 @@ public final class RemoteMenu implements VoteMenu {
         return slot >= 0 && slot < items.size() && !items.get(slot).isEmpty();
     }
 
-    /**
-     * Sends the pickup a vanilla client would send: the slot empties onto the cursor. That
-     * prediction is not applied locally, since the server cancels the move and resends.
-     */
+    /** Sends the pickup a vanilla client would, but without predicting it: the server cancels the move and resends. */
     @Override
     public void click(int slot) {
         ClientPacketListener connection = connection();
@@ -123,7 +115,6 @@ public final class RemoteMenu implements VoteMenu {
                 ContainerInput.PICKUP, changedSlots, carried));
     }
 
-    /** Tells the server the menu is closed and stops tracking it. */
     @Override
     public void close() {
         ClientPacketListener connection = connection();

@@ -36,12 +36,12 @@ public class UpdateChecker {
 
     private static final URI LATEST_RELEASE = URI.create("https://api.github.com/repos/cruvex/cubecraft-plus/releases/latest");
     private static final Gson GSON = new Gson();
-    /** Lands after CubeCraft's welcome banner, which would otherwise push the message out of view. */
+    /** How long after joining to wait, so the message lands after CubeCraft's welcome banner. */
     private static final long JOIN_DELAY_MS = 5000;
 
     private static UpdateChecker instance;
 
-    // All only touched on the client thread
+    // Client thread only
     private @Nullable Result update;
     private boolean announced;
     private boolean joinDelayPassed;
@@ -107,7 +107,7 @@ public class UpdateChecker {
         String minecraft = minecraftVersion();
         boolean newer;
         try {
-            // Ignores the "+26.2" a release jar's version carries
+            // Compared without the "+26.2" a release jar's version carries
             Version latestVersion = SemanticVersion.parse(latest);
             newer = latestVersion.compareTo(SemanticVersion.parse(current)) > 0;
         } catch (VersionParsingException e) {

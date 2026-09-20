@@ -24,7 +24,7 @@ public class CubeCraftManager {
 
     /** The title CubeCraft shows while the player is AFK, under "Move to return to the game.". */
     private static final String AFK_TITLE = "You're AFK";
-    /** Three of the one-second repeats: only the title going quiet says the player moved. */
+    /** Three of the one-second repeats, after which the title having gone quiet counts as back. */
     private static final long AFK_TIMEOUT_MS = 3000;
 
     private String serverId = "";
@@ -57,7 +57,7 @@ public class CubeCraftManager {
             return;
         }
 
-        // Every server switch arrives as a fresh login, so only the first one is a CubeCraft join
+        // Every server switch arrives as a fresh login, so only the first counts as joining CubeCraft
         if (announcedCubeJoin) {
             Debug.log("Switched CubeCraft server");
             return;
@@ -80,11 +80,11 @@ public class CubeCraftManager {
     private void onTitle(Component title) {
         if (!isOnCubeCraft()) return;
 
-        // Any other title means the AFK screen is gone, which is the only end CubeCraft announces
+        // Any other title clears it: CubeCraft never announces the AFK screen ending
         afkTitleAt = title.getString().equals(AFK_TITLE) ? System.currentTimeMillis() : 0;
     }
 
-    /** Coming back is the title going quiet, so the state can only expire on a tick. */
+    /** Expires the AFK state once the title has stopped repeating. */
     private void onEndTick(Minecraft client) {
         boolean stillAfk = System.currentTimeMillis() - afkTitleAt < AFK_TIMEOUT_MS;
         if (stillAfk == afk) return;
@@ -101,7 +101,7 @@ public class CubeCraftManager {
     private static boolean isKubusMaken(String address) {
         if (address == null) return false;
 
-        // Server list entries may carry a port, the domains below don't
+        // Strip the port a server list entry may carry
         String host = address.toLowerCase(Locale.ROOT).trim();
         int portSeparator = host.lastIndexOf(':');
         if (portSeparator > -1) {
