@@ -4,8 +4,8 @@ import com.cruvex.cubecraftplus.chat.Chat;
 import com.cruvex.cubecraftplus.config.ConfigManager;
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.gui.tab.AutoVoteTab;
+import com.cruvex.cubecraftplus.gui.tab.CubepanionTab;
 import com.cruvex.cubecraftplus.gui.tab.GeneralTab;
-import com.cruvex.cubecraftplus.gui.tab.LeaderboardTab;
 import com.cruvex.cubecraftplus.gui.widget.DropdownWidget;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -45,7 +45,7 @@ public class ConfigScreen extends Screen {
                 .addTabs(
                         new GeneralTab(this, draft),
                         new AutoVoteTab(this, draft.autoVote),
-                        new LeaderboardTab(this, draft.leaderboardSubmit))
+                        new CubepanionTab(this, draft))
                 .build();
         addRenderableWidget(tabNavigationBar);
 
