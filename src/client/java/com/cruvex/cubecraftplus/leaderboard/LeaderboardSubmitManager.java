@@ -3,6 +3,7 @@ package com.cruvex.cubecraftplus.leaderboard;
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.config.ConfigManager;
 import com.cruvex.cubecraftplus.cubepanion.CubepanionAPI;
+import com.cruvex.cubecraftplus.cubesocket.CubeSocket;
 import com.cruvex.cubecraftplus.debug.Debug;
 import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.Game;
@@ -92,6 +93,8 @@ public class LeaderboardSubmitManager {
     private void onEndTick(Minecraft client) {
         if (client.player == null || !CubeCraftManager.getInstance().isOnCubeCraft()) return;
         if (!ConfigManager.getInstance().getConfig().leaderboardSubmit.enabled) return;
+        // Cubepanion only accepts submissions from a player on the CubeSocket
+        if (!CubeSocket.isEnabled()) return;
         if (!configuration.canSubmit()) return;
 
         // Forgotten once it closes, so a reused container id is not taken for a parsed menu

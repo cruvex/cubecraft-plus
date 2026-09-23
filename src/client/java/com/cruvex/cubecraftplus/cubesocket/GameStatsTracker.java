@@ -97,6 +97,7 @@ public class GameStatsTracker {
     /** Whether the scan ran. */
     private boolean scan(Minecraft client) {
         if (!ConfigManager.getInstance().getConfig().gameStats.enabled
+                || !CubeSocket.isEnabled()
                 || !CubeCraftManager.getInstance().isOnCubeCraft()) {
             return true;
         }
