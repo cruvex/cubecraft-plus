@@ -1,11 +1,11 @@
 package com.cruvex.cubecraftplus.gui.screen;
 
-import com.cruvex.cubecraftplus.chat.Chat;
 import com.cruvex.cubecraftplus.config.ConfigManager;
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.gui.tab.AutoVoteTab;
 import com.cruvex.cubecraftplus.gui.tab.CubepanionTab;
 import com.cruvex.cubecraftplus.gui.tab.GeneralTab;
+import com.cruvex.cubecraftplus.gui.toast.ModToast;
 import com.cruvex.cubecraftplus.gui.widget.DropdownWidget;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -79,7 +79,7 @@ public class ConfigScreen extends Screen {
 
     private void saveAndClose() {
         boolean saved = ConfigManager.getInstance().update(draft);
-        Chat.send(saved
+        ModToast.show(ModToast.Icon.LOGO, this.title, saved
                 ? Component.translatable("cubecraftplus.config.saved").withStyle(ChatFormatting.GREEN)
                 : Component.translatable("cubecraftplus.config.savefailed").withStyle(ChatFormatting.RED));
         this.minecraft.gui.setScreen(parent);

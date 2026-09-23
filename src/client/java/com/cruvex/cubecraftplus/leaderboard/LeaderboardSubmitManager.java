@@ -8,6 +8,7 @@ import com.cruvex.cubecraftplus.debug.Debug;
 import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.Game;
 import com.cruvex.cubecraftplus.game.GameRegistry;
+import com.cruvex.cubecraftplus.gui.toast.ModToast;
 import com.mojang.authlib.properties.Property;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -47,6 +48,8 @@ public class LeaderboardSubmitManager {
     /** "EggWars Leaderboard (3/10)" -> page 3. */
     private static final Pattern PAGE_PATTERN = Pattern.compile(".*\\((\\d+)/\\d+\\)");
     private static final Pattern PLAYER_NAME_PATTERN = Pattern.compile("[a-zA-Z0-9_]{2,16}");
+
+    private static final Component TOAST_TITLE = Component.literal("Cubepanion");
 
     private volatile LeaderboardConfiguration configuration = LeaderboardConfiguration.DISABLED;
 
@@ -223,17 +226,16 @@ public class LeaderboardSubmitManager {
                 .exceptionally(e -> {
                     LOGGER.error("Failed to submit leaderboard for {}", submittingFor.name(), e);
                     Debug.log("Leaderboard: submit for {} failed: {}", submittingFor.displayName(), e.getMessage());
+                    ModToast.show(ModToast.Icon.CUBEPANION_SAD, TOAST_TITLE,
+                            Component.translatable("cubecraftplus.leaderboard.submit_failed", submittingFor.displayName())
+                                    .withStyle(ChatFormatting.RED));
                     return null;
                 });
     }
 
     private void onSubmitted(Game game, int places) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) return;
-
-        player.sendSystemMessage(
-                Component.translatable("cubecraftplus.leaderboard.submitted",
-                                Component.literal(game.displayName()).withStyle(ChatFormatting.AQUA))
+        ModToast.show(ModToast.Icon.CUBEPANION_HAPPY, TOAST_TITLE,
+                Component.translatable("cubecraftplus.leaderboard.submitted", game.displayName())
                         .withStyle(ChatFormatting.GREEN));
     }
 

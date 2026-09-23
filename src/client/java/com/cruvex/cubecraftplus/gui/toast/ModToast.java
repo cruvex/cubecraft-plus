@@ -21,6 +21,10 @@ public class ModToast implements Toast {
     private static final Identifier BACKGROUND_SPRITE = Identifier.withDefaultNamespace("toast/now_playing");
     private static final long DISPLAY_TIME_MS = 5000L;
 
+    /** Sized like vanilla's system toast: at least as wide as one, growing with the text up to a wrap width. */
+    private static final int MIN_WIDTH = 190;
+    private static final int MAX_TEXT_WIDTH = 200;
+
     private static final int ICON_SIZE = 24;
     private static final int ICON_LEFT = 4;
     private static final int TEXT_LEFT_WITH_ICON = 30;
@@ -35,12 +39,16 @@ public class ModToast implements Toast {
     private final @Nullable Icon icon;
     private final Component title;
     private final List<FormattedCharSequence> messageLines;
+    private final int width;
     private Visibility visibility = Visibility.SHOW;
 
     public ModToast(Font font, @Nullable Icon icon, Component title, Component message) {
         this.icon = icon;
         this.title = title;
-        this.messageLines = font.split(message, DEFAULT_WIDTH - textLeft() - TEXT_RIGHT);
+        this.messageLines = font.split(message, MAX_TEXT_WIDTH);
+
+        int widest = Math.max(font.width(title), messageLines.stream().mapToInt(font::width).max().orElse(0));
+        this.width = Math.max(MIN_WIDTH, textLeft() + widest + TEXT_RIGHT);
     }
 
     /** Safe to call from any thread; the toast is added on the client thread. */
@@ -59,6 +67,11 @@ public class ModToast implements Toast {
         if (fullyVisibleForMs >= DISPLAY_TIME_MS * manager.getNotificationDisplayTimeMultiplier()) {
             visibility = Visibility.HIDE;
         }
+    }
+
+    @Override
+    public int width() {
+        return width;
     }
 
     @Override
@@ -88,6 +101,7 @@ public class ModToast implements Toast {
     }
 
     public enum Icon {
+        LOGO("toast/logo"),
         CUBEPANION_HAPPY("toast/cubepanion_happy"),
         CUBEPANION_SAD("toast/cubepanion_sad");
 
