@@ -17,6 +17,7 @@ import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -83,7 +84,7 @@ public class CubeSocket {
         try {
             if (!isEnabled()) {
                 if (this.state != CubeSocketState.OFFLINE) {
-                    this.disconnect("Turned off in the config");
+                    this.disconnect(Component.translatable("cubecraftplus.cubesocket.disconnected.disabled"));
                 }
                 // Turning it back on connects straight away, with a fresh set of tries
                 this.timeNextConnect = 0L;
@@ -99,7 +100,7 @@ public class CubeSocket {
             long untilConnect = this.timeNextConnect - Instant.now().toEpochMilli();
 
             if (this.state != CubeSocketState.OFFLINE && sinceKeepAlive > KEEP_ALIVE_TIMEOUT_MS) {
-                this.disconnect("Connection timed out");
+                this.disconnect(Component.translatable("cubecraftplus.cubesocket.disconnected.timed_out"));
             }
 
             if (this.state == CubeSocketState.OFFLINE && untilConnect < 0L) {
@@ -145,12 +146,12 @@ public class CubeSocket {
 
     private void onNetworkDisconnect() {
         if (this.isConnected()) {
-            this.disconnect("Logged off CubeCraft");
+            this.disconnect(Component.translatable("cubecraftplus.cubesocket.disconnected.logged_off"));
         }
         this.connectTries = 0;
     }
 
-    private void disconnect(String reason) {
+    private void disconnect(Component reason) {
         // Up to a minute of jitter, so everyone kicked at once doesn't come back at once
         long delay = (long) (1000.0 * Math.random() * 60.0);
         this.timeNextConnect = Instant.now().toEpochMilli() + 10000L + delay;

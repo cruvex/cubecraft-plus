@@ -2,6 +2,7 @@ package com.cruvex.cubecraftplus.cubesocket;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
+import net.minecraft.network.chat.Component;
 
 public final class CubeSocketEvents {
 
@@ -36,7 +37,7 @@ public final class CubeSocketEvents {
 
     @FunctionalInterface
     public interface Disconnected {
-        void onDisconnected(String reason);
+        void onDisconnected(Component reason);
     }
 
     @FunctionalInterface

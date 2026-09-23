@@ -1,24 +1,18 @@
 package com.cruvex.cubecraftplus.cubesocket;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.toasts.SystemToast;
+import com.cruvex.cubecraftplus.gui.toast.ModToast;
 import net.minecraft.network.chat.Component;
 
 public class CubeSocketNotifications {
 
-    public CubeSocketNotifications() {
-        CubeSocketEvents.SOCKET_CONNECT.register(() -> toast("Successfully connected"));
-        CubeSocketEvents.SOCKET_DISCONNECT.register(this::toast);
-        CubeSocketEvents.SOCKET_RELOAD_REQUEST.register(() -> toast("Successfully reloaded"));
-    }
+    private static final Component TITLE = Component.literal("CubeSocket");
 
-    private void toast(String message) {
-        Minecraft client = Minecraft.getInstance();
-        client.execute(() -> SystemToast.add(
-                client.gui.toastManager(),
-                SystemToast.SystemToastId.NARRATOR_TOGGLE,
-                Component.literal("CubeSocket"),
-                Component.literal(message)
-        ));
+    public CubeSocketNotifications() {
+        CubeSocketEvents.SOCKET_CONNECT.register(() -> ModToast.show(ModToast.Icon.CUBEPANION_HAPPY, TITLE,
+                Component.translatable("cubecraftplus.cubesocket.connected")));
+        CubeSocketEvents.SOCKET_DISCONNECT.register(reason -> ModToast.show(ModToast.Icon.CUBEPANION_SAD, TITLE,
+                Component.translatable("cubecraftplus.cubesocket.disconnected", reason)));
+        CubeSocketEvents.SOCKET_RELOAD_REQUEST.register(() -> ModToast.show(ModToast.Icon.CUBEPANION_HAPPY, TITLE,
+                Component.translatable("cubecraftplus.cubesocket.reloaded")));
     }
 }

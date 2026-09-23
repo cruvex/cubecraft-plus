@@ -14,6 +14,7 @@ import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketSetProtocol;
 import io.netty.channel.ChannelHandlerContext;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 
 import java.util.UUID;
@@ -35,7 +36,8 @@ public class CubeSocketSession extends PacketHandler {
     public void channelInactive(ChannelHandlerContext ctx) {
         if (this.socket.getState() != CubeSocketState.OFFLINE) {
             this.socket.updateState(CubeSocketState.OFFLINE);
-            CubeSocketEvents.SOCKET_DISCONNECT.invoker().onDisconnected("Server forced a disconnect");
+            CubeSocketEvents.SOCKET_DISCONNECT.invoker().onDisconnected(
+                    Component.translatable("cubecraftplus.cubesocket.disconnected.server_closed"));
         }
     }
 
@@ -74,7 +76,8 @@ public class CubeSocketSession extends PacketHandler {
     @Override
     public void handle(PacketDisconnect packet) {
         this.socket.updateState(CubeSocketState.OFFLINE);
-        CubeSocketEvents.SOCKET_DISCONNECT.invoker().onDisconnected(packet.getReason());
+        // Worded by the server, so there is no key to translate it with
+        CubeSocketEvents.SOCKET_DISCONNECT.invoker().onDisconnected(Component.literal(packet.getReason()));
     }
 
     @Override
