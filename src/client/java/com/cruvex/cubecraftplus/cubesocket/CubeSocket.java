@@ -1,6 +1,7 @@
 package com.cruvex.cubecraftplus.cubesocket;
 
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
+import com.cruvex.cubecraftplus.config.ConfigManager;
 import com.cruvex.cubecraftplus.cubesocket.protocol.Packet;
 import com.cruvex.cubecraftplus.cubesocket.protocol.Protocol;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketDisconnect;
@@ -80,6 +81,16 @@ public class CubeSocket {
 
     private void checkConnection() {
         try {
+            if (!isEnabled()) {
+                if (this.state != CubeSocketState.OFFLINE) {
+                    this.disconnect("Turned off in the config");
+                }
+                // Turning it back on connects straight away, with a fresh set of tries
+                this.timeNextConnect = 0L;
+                this.connectTries = 0;
+                return;
+            }
+
             if (!CubeCraftManager.getInstance().isOnCubeCraft()) {
                 return;
             }
@@ -100,7 +111,7 @@ public class CubeSocket {
     }
 
     private void connect() {
-        if (this.connectTries >= MAX_CONNECT_TRIES) {
+        if (!isEnabled() || this.connectTries >= MAX_CONNECT_TRIES) {
             return;
         }
 
@@ -204,6 +215,10 @@ public class CubeSocket {
 
     public boolean isConnected() {
         return this.state == CubeSocketState.CONNECTED;
+    }
+
+    public static boolean isEnabled() {
+        return ConfigManager.getInstance().getConfig().cubeSocket.enabled;
     }
 
     public CubeSocketState getState() {

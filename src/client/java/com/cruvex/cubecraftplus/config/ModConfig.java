@@ -15,11 +15,17 @@ public class ModConfig {
 
     public GameStatsConfig gameStats = new GameStatsConfig();
 
+    public CubeSocketConfig cubeSocket = new CubeSocketConfig();
+
     public static class UpdateCheckConfig {
         public boolean enabled = true;
     }
 
     public static class GameStatsConfig {
+        public boolean enabled = true;
+    }
+
+    public static class CubeSocketConfig {
         public boolean enabled = true;
     }
 
@@ -49,6 +55,7 @@ public class ModConfig {
         if (chestFinder == null) chestFinder = new ChestFinderConfig();
         if (updateCheck == null) updateCheck = new UpdateCheckConfig();
         if (gameStats == null) gameStats = new GameStatsConfig();
+        if (cubeSocket == null) cubeSocket = new CubeSocketConfig();
 
         if (autoVote == null) autoVote = new AutoVoteConfig();
         if (autoVote.slots == null) autoVote.slots = new HashMap<>();
