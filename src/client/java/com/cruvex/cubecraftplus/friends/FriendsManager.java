@@ -41,7 +41,8 @@ import java.util.stream.Stream;
 /** Holds the friends list: read from chat on join and refresh, kept current from friend messages. */
 public class FriendsManager {
 
-    private static final Pattern HEADER = Pattern.compile("^-+ Friends ");
+    /** Or, with no friends, the whole reply: one line in place of the header, read as an empty page. */
+    private static final Pattern HEADER = Pattern.compile("^-+ Friends |^You do not have any friends!$");
     /** Absent when the list fits on one page. */
     private static final Pattern PAGE = Pattern.compile("(\\d+)/(\\d+)");
     /** A name with any rank symbols around it, but no comma: that separates names sharing a line. */
@@ -75,6 +76,8 @@ public class FriendsManager {
     private static FriendsManager instance;
 
     private List<Friend> friends = List.of();
+    /** Whether the list came from the server this session, rather than being last session's names or nothing. */
+    private boolean listLoaded;
     private @Nullable CompletableFuture<List<Friend>> refreshing;
     private @Nullable CompletableFuture<Void> checkingOnline;
     /** Friend messages seen, which a load compares before and after to spot a list that moved. */
@@ -112,7 +115,10 @@ public class FriendsManager {
         CubeEvents.CUBE_JOIN.register(this::onCubeJoin);
         ClientReceiveMessageEvents.GAME.register(this::onGameMessage);
         // Can fire off the client thread
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> friends = List.of()));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
+            friends = List.of();
+            listLoaded = false;
+        }));
     }
 
     /** Replaced on every change, never modified, so a changed reference means a changed list. */
@@ -122,6 +128,10 @@ public class FriendsManager {
 
     public boolean isRefreshing() {
         return refreshing != null && !refreshing.isDone();
+    }
+
+    public boolean isLoaded() {
+        return listLoaded;
     }
 
     /** Why a refresh failed, in words for the player, unwrapping the CompletionException it arrives in. */
@@ -148,6 +158,7 @@ public class FriendsManager {
         return fetchPages(page -> true, this::show).thenCompose(pages -> {
             List<Friend> loaded = merge(pages);
             friends = loaded;
+            listLoaded = true;
 
             int listed = pages.stream().mapToInt(page -> page.friends().size()).sum();
             if (friendMessages == messagesBefore && listed == loaded.size()) {

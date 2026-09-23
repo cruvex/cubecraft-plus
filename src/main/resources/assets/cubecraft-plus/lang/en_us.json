@@ -30,6 +30,7 @@
   "cubecraftplus.friends.refresh": "Refresh Friends list",
   "cubecraftplus.friends.loading": "Loading your friends...",
   "cubecraftplus.friends.empty": "No friends loaded. Join CubeCraft, then press Refresh.",
+  "cubecraftplus.friends.none": "You don't have any friends on CubeCraft yet",
   "cubecraftplus.friends.no_match": "No friends match your search",
   "cubecraftplus.friends.message": "Message %s",
   "cubecraftplus.friends.invite": "Invite %s to your party",

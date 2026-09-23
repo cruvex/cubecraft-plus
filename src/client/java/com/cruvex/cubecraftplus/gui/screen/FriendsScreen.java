@@ -164,6 +164,7 @@ public class FriendsScreen extends Screen {
 
         String key = !shown.isEmpty() ? "cubecraftplus.friends.no_match"
                 : FriendsManager.getInstance().isRefreshing() ? "cubecraftplus.friends.loading"
+                : FriendsManager.getInstance().isLoaded() ? "cubecraftplus.friends.none"
                 : "cubecraftplus.friends.empty";
         graphics.centeredText(font, Component.translatable(key), width / 2, layout.getHeaderHeight() + 20, CommonColors.GRAY);
     }
