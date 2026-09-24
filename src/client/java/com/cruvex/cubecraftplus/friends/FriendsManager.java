@@ -343,6 +343,23 @@ public class FriendsManager {
         }
     }
 
+    /** The uuid of a friend known to be online, e.g. from a message; looked up if not certain yet, null if Mojang has none. */
+    public CompletableFuture<UUID> confirmOnline(String name) {
+        String key = name.toLowerCase(Locale.ROOT);
+        UUID known = ids.get(key);
+        if (known != null) return CompletableFuture.completedFuture(known);
+
+        return HeadResolver.getInstance().lookUp(List.of(name)).thenApplyAsync(found -> {
+            UUID id = found.get(key);
+            if (id != null) {
+                ids.put(key, id);
+                friends = identified(friends);
+                persist();
+            }
+            return id;
+        }, Minecraft.getInstance());
+    }
+
     /** The listed name a known uuid had, if that name is no longer in the list. */
     private @Nullable String renamedFrom(UUID id) {
         return ids.entrySet().stream()
@@ -416,7 +433,7 @@ public class FriendsManager {
         }
     }
 
-    private static @Nullable UUID account() {
+    static @Nullable UUID account() {
         Minecraft client = Minecraft.getInstance();
         return client.player == null ? null : client.player.getUUID();
     }
