@@ -126,7 +126,7 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
             int x = getContentX();
             int middle = getContentYMiddle();
 
-            ResolvableProfile head = HeadResolver.getInstance().headFor(friend.name());
+            ResolvableProfile head = HeadResolver.getInstance().headFor(friend);
             int headY = middle - HEAD_SIZE / 2;
             if (head != null) {
                 PlayerFaceExtractor.extractRenderState(graphics, head, x, headY, HEAD_SIZE);
