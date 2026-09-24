@@ -13,6 +13,7 @@ import com.mojang.authlib.ProfileLookupCallback;
 import com.mojang.authlib.minecraft.MinecraftProfileTexture;
 import com.mojang.authlib.minecraft.SessionService;
 import com.mojang.authlib.properties.PropertyMap;
+import com.mojang.authlib.services.ProfileNotFoundException;
 import com.mojang.authlib.services.ProfileResult;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Util;
@@ -35,6 +36,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /** Friends' heads, and the Mojang uuids behind them, kept forever so a renamed friend keeps the right head. */
 public class HeadResolver {
@@ -57,7 +59,11 @@ public class HeadResolver {
 
     /** Uuids by lowercase name; written on the lookup thread, read on the client thread. */
     private final Map<String, UUID> ids = new ConcurrentHashMap<>(loadIds());
-    private CompletableFuture<Void> lookup = CompletableFuture.completedFuture(null);
+    /** The last lookup queued; each one waits for the one before it. */
+    private CompletableFuture<?> lookup = CompletableFuture.completedFuture(null);
+    /** Lowercase names looked up this session, and the uuids of the ones Mojang found. */
+    private final Set<String> asked = ConcurrentHashMap.newKeySet();
+    private final Map<String, UUID> found = new ConcurrentHashMap<>();
     /** Profiles with their skin data, for vanilla to draw; saved so a new launch draws them straight away. */
     private final Map<UUID, ResolvableProfile> heads = loadHeads();
     /** Uuids fetched this session, so each saved head is checked for a new skin once. */
@@ -78,9 +84,9 @@ public class HeadResolver {
         return ids.get(name.toLowerCase(Locale.ROOT));
     }
 
-    /** The head to draw for a name, or null while it has no uuid or no profile yet. */
-    public @Nullable ResolvableProfile headFor(String name) {
-        UUID id = idFor(name);
+    /** The head to draw for a friend, or null while they have no uuid or no profile yet. */
+    public @Nullable ResolvableProfile headFor(Friend friend) {
+        UUID id = friend.id() != null ? friend.id() : idFor(friend.name());
         if (id == null) return null;
 
         long now = System.currentTimeMillis();
@@ -133,28 +139,44 @@ public class HeadResolver {
         write(SKINS, heads.values().stream().map(ResolvableProfile::partialProfile).toList(), PROFILES.getType());
     }
 
-    /** Looks up the uuids of names that have none, unless a lookup is still running. */
-    public void resolve(Collection<String> names) {
-        String[] unknown = names.stream().filter(name -> idFor(name) == null).toArray(String[]::new);
-        if (unknown.length == 0 || !lookup.isDone()) return;
-
-        Debug.log("Heads: looking up {} names", unknown.length);
+    /** Looks names up with Mojang once a session, after any running lookup; completes with the found uuids by name. */
+    public CompletableFuture<Map<String, UUID>> lookUp(Collection<String> names) {
+        List<String> keys = names.stream().map(name -> name.toLowerCase(Locale.ROOT)).distinct().toList();
+        String[] unasked = keys.stream().filter(key -> !asked.contains(key)).toArray(String[]::new);
+        asked.addAll(Arrays.asList(unasked));
         GameProfileRepository repository = Minecraft.getInstance().services().profileRepository();
-        lookup = CompletableFuture.runAsync(() -> {
-            // Blocks while it pages through the names two at a time
-            repository.findProfilesByNames(unknown, new ProfileLookupCallback() {
-                @Override
-                public void onProfileLookupSucceeded(String name, UUID id) {
-                    ids.put(name.toLowerCase(Locale.ROOT), id);
-                }
 
-                @Override
-                public void onProfileLookupFailed(String name, Exception error) {
-                }
-            });
-            write(ModPaths.playerIds(), ids, IDS.getType());
-            Debug.log("Heads: found {} of {}", Arrays.stream(unknown).filter(name -> idFor(name) != null).count(), unknown.length);
+        CompletableFuture<Map<String, UUID>> result = lookup.thenApplyAsync(previous -> {
+            if (unasked.length > 0) {
+                find(repository, unasked);
+            }
+            return keys.stream().filter(found::containsKey).collect(Collectors.toMap(key -> key, found::get));
         }, Util.nonCriticalIoPool());
+        lookup = result.exceptionally(error -> null);
+        return result;
+    }
+
+    private void find(GameProfileRepository repository, String[] names) {
+        Debug.log("Heads: looking up {} names", names.length);
+        // Blocks while it pages through the names ten at a time
+        repository.findProfilesByNames(names, new ProfileLookupCallback() {
+            @Override
+            public void onProfileLookupSucceeded(String name, UUID id) {
+                String key = name.toLowerCase(Locale.ROOT);
+                found.put(key, id);
+                ids.put(key, id);
+            }
+
+            @Override
+            public void onProfileLookupFailed(String name, Exception error) {
+                // Asked again next time, unless the name has no account
+                if (!(error instanceof ProfileNotFoundException)) {
+                    asked.remove(name.toLowerCase(Locale.ROOT));
+                }
+            }
+        });
+        write(ModPaths.playerIds(), ids, IDS.getType());
+        Debug.log("Heads: found {} of {}", Arrays.stream(names).filter(found::containsKey).count(), names.length);
     }
 
     private static Map<String, UUID> loadIds() {
