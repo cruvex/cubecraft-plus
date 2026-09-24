@@ -3,6 +3,7 @@ package com.cruvex.cubecraftplus.gui.screen;
 import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.friends.Friend;
 import com.cruvex.cubecraftplus.friends.FriendsManager;
+import com.cruvex.cubecraftplus.friends.HeadResolver;
 import com.cruvex.cubecraftplus.gui.widget.FriendsList;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -172,5 +173,10 @@ public class FriendsScreen extends Screen {
     @Override
     public void onClose() {
         minecraft.gui.setScreen(parent);
+    }
+
+    @Override
+    public void removed() {
+        HeadResolver.getInstance().saveHeads();
     }
 }
