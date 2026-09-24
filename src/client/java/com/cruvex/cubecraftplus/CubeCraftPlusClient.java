@@ -10,6 +10,7 @@ import com.cruvex.cubecraftplus.cubesocket.CubeSocket;
 import com.cruvex.cubecraftplus.cubesocket.CubeSocketEvents;
 import com.cruvex.cubecraftplus.cubesocket.GameStatsTracker;
 import com.cruvex.cubecraftplus.debug.SignalProbe;
+import com.cruvex.cubecraftplus.friends.FriendMessages;
 import com.cruvex.cubecraftplus.friends.FriendsManager;
 import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.CubeEvents;
@@ -44,6 +45,7 @@ public class CubeCraftPlusClient implements ClientModInitializer {
 
         ChatQueryManager.getInstance().init();
         FriendsManager.getInstance().init();
+        FriendMessages.getInstance().init();
         ChestFinderManager.getInstance().init();
         CubeCraftManager.getInstance().init();
         GameManager.getInstance().init();
