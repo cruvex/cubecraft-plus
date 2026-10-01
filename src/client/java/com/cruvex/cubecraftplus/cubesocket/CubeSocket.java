@@ -49,7 +49,7 @@ public class CubeSocket {
     private static CubeSocket instance;
 
     private final Protocol protocol = new Protocol();
-    private final EventLoopGroup eventLoopGroup = new MultiThreadIoEventLoopGroup(0, THREADS, NioIoHandler.newFactory());
+    private final EventLoopGroup eventLoopGroup = new MultiThreadIoEventLoopGroup(1, THREADS, NioIoHandler.newFactory());
     private final ExecutorService executor = Executors.newFixedThreadPool(2, THREADS);
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(THREADS);
 
