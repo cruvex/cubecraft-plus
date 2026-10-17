@@ -60,11 +60,13 @@ jobs:
 
       # One release per mod version, holding a jar per supported Minecraft version.
       # The first branch to release creates it, the rest add their jar to it.
+      # A new tag goes on the built commit; left unset, it would land on the default branch.
       - name: Upload to GitHub Release
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
+          target_commitish: ${{ github.sha }}
           name: ${{ inputs.version }}
           make_latest: ${{ inputs.latest }}
           files: build/libs/*.jar
