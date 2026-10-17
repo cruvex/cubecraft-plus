@@ -1,5 +1,6 @@
 package com.cruvex.cubecraftplus.gui.widget;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -65,7 +66,7 @@ public class DropdownWidget<T> extends AbstractButton {
 
     /** Routes a click at the open option list, returning true when it selected an entry; anything else closes the list. */
     public boolean handlePopupClick(MouseButtonEvent event) {
-        if (!open || event.button() != 0) return false;
+        if (!open || event.button() != InputConstants.MOUSE_BUTTON_LEFT) return false;
 
         int index = entryIndexAt(event.x(), event.y());
         if (index >= 0) {
