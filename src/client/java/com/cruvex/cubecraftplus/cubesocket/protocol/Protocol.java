@@ -1,7 +1,6 @@
 package com.cruvex.cubecraftplus.cubesocket.protocol;
 
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketDisconnect;
-import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketGameStatUpdate;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketHelloPing;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketHelloPong;
 import com.cruvex.cubecraftplus.cubesocket.protocol.packets.PacketLocationUpdate;
@@ -31,7 +30,7 @@ public class Protocol {
         this.register(7, PacketLogin.class);
         this.register(8, PacketLoginComplete.class);
         this.register(9, PacketSetProtocol.class);
-        this.register(10, PacketGameStatUpdate.class);
+        // 10 is PacketGameStatUpdate, no longer sent: Cubepanion gets player counts from a more consistent source
         this.register(11, PacketReload.class);
     }
 

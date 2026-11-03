@@ -8,7 +8,6 @@ import com.cruvex.cubecraftplus.commands.CommandManager;
 import com.cruvex.cubecraftplus.config.ConfigManager;
 import com.cruvex.cubecraftplus.cubesocket.CubeSocket;
 import com.cruvex.cubecraftplus.cubesocket.CubeSocketEvents;
-import com.cruvex.cubecraftplus.cubesocket.GameStatsTracker;
 import com.cruvex.cubecraftplus.debug.SignalProbe;
 import com.cruvex.cubecraftplus.friends.FriendMessages;
 import com.cruvex.cubecraftplus.friends.FriendsManager;
@@ -54,7 +53,6 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         AutoVoteManager.getInstance().init();
         LeaderboardSubmitManager.getInstance().init();
         CubeSocket.getInstance().init();
-        GameStatsTracker.getInstance().init();
         UpdateChecker.getInstance().init();
     }
 
