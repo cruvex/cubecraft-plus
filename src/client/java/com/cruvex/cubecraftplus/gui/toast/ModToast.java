@@ -79,6 +79,12 @@ public class ModToast implements Toast {
         return Math.max(SLOT_HEIGHT, PADDING_TOP + (1 + messageLines.size()) * LINE_SPACING + PADDING_BOTTOM);
     }
 
+    /** Vanilla multiplies by the toast's own height, which puts a wrapped toast below its slot. */
+    @Override
+    public float yPos(int firstSlotIndex) {
+        return firstSlotIndex * SLOT_HEIGHT;
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, Font font, long fullyVisibleForMs) {
         int height = height();
