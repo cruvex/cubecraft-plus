@@ -86,7 +86,7 @@ public record VoteMenuView(int containerId, int openCount, int stateId, String t
         return data == null ? "" : data.copyTag().getStringOr(VARIANT_KEY, "");
     }
 
-    private ItemStack item(int slot) {
+    ItemStack item(int slot) {
         return slot >= 0 && slot < items.size() ? items.get(slot) : ItemStack.EMPTY;
     }
 }

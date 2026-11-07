@@ -1,6 +1,8 @@
 package com.cruvex.cubecraftplus.autovote;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.ContainerInput;
@@ -17,8 +19,14 @@ import java.util.Locale;
  */
 final class VoteRun {
 
-    /** The slowest recorded answer was 378ms, and team games leave about 10 seconds for every vote. */
-    private static final int STEP_TIMEOUT_TICKS = 20;
+    /**
+     * The slowest answer on EU servers was 378ms and on Asia 500ms, while team games leave about 10 seconds for
+     * every vote; a high ping stretches it to four round trips.
+     */
+    private static final int MIN_STEP_TIMEOUT_TICKS = 20;
+    private static final int TIMEOUT_ROUND_TRIPS = 4;
+    /** How long a vote confirmed by chat waits for the menu's own resync before moving on. */
+    private static final int RESYNC_TICKS = 10;
 
     private enum Step {
         OPEN_CATEGORY_LIST("open the category list"),
@@ -55,9 +63,13 @@ final class VoteRun {
     // Closes the player had sent before the run, so their Esc stops it
     private int closesBefore;
 
+    private int stepTimeoutTicks = MIN_STEP_TIMEOUT_TICKS;
     private Step step = Step.FINISHED;
     private int stepTicks;
     private long stepStartedAt;
+    // Counted already through chat, waiting for the menu to catch up so the next click is not on stale state
+    private boolean awaitingResync;
+    private int resyncTicks;
     // Opens the tracker had seen when we acted, so only a menu that opened after counts as the answer
     private int opensBefore;
     // Each vote gets one retry after a timeout, on top of the rate limit retries
@@ -87,7 +99,10 @@ final class VoteRun {
     void start() {
         startedAt = System.currentTimeMillis();
         closesBefore = MenuTracker.getInstance().clientCloses();
-        AutoVoteManager.log("run: voting in {} categories", votes.size());
+        int ping = ping();
+        stepTimeoutTicks = Math.max(MIN_STEP_TIMEOUT_TICKS, (int) Math.ceil(ping * TIMEOUT_ROUND_TRIPS / 50.0));
+        AutoVoteManager.log("run: voting in {} categories (ping {}ms, step timeout {}ms)",
+                votes.size(), ping, stepTimeoutTicks * 50);
         beginVote();
         openVoting();
     }
@@ -100,7 +115,7 @@ final class VoteRun {
             stop("the menu was closed by the player");
             return false;
         }
-        if (++stepTicks > STEP_TIMEOUT_TICKS) {
+        if (++stepTicks > stepTimeoutTicks) {
             onTimeout();
             return step != Step.FINISHED;
         }
@@ -125,7 +140,7 @@ final class VoteRun {
             nextVote();
             return;
         }
-        if (step != Step.CONFIRM_VOTE) return;
+        if (step != Step.CONFIRM_VOTE || awaitingResync) return;
 
         if (text.equals(RATE_LIMITED)) {
             if (rateLimitRetriesLeft-- <= 0) {
@@ -189,6 +204,13 @@ final class VoteRun {
     /** Waits for foil on the option, or for the chat line through onChat, whichever comes first. */
     private void tickConfirm(@Nullable VoteMenuView menu) {
         boolean menuOpen = menu != null && menu.containerId() == voteContainerId;
+        if (awaitingResync) {
+            if (!menuOpen || menu.hasFoil(current().voteSlot()) || --resyncTicks <= 0) {
+                awaitingResync = false;
+                nextVote();
+            }
+            return;
+        }
         if (menuOpen && menu.hasFoil(current().voteSlot())) {
             voteLanded("foil");
             return;
@@ -250,6 +272,15 @@ final class VoteRun {
         voted++;
         AutoVoteManager.log("run: voted for '{}' in '{}', confirmed by {} after {}ms",
                 optionName, current().submenuTitle(), confirmedBy, elapsed());
+
+        // Chat can beat the menu's resync; clicking Back before it lands sends a click on stale state
+        VoteMenuView menu = MenuTracker.getInstance().view();
+        if (menu != null && menu.containerId() == voteContainerId && !menu.hasFoil(current().voteSlot())) {
+            awaitingResync = true;
+            resyncTicks = RESYNC_TICKS;
+            stepTicks = 0;
+            return;
+        }
         nextVote();
     }
 
@@ -293,6 +324,7 @@ final class VoteRun {
     }
 
     private void beginVote() {
+        awaitingResync = false;
         retried = false;
         rateLimitRetriesLeft = RATE_LIMIT_RETRIES;
         retryInTicks = 0;
@@ -361,7 +393,7 @@ final class VoteRun {
         return menu != null && menu.openCount() > opensBefore;
     }
 
-    /** Clicks through the screen, the way the player would. */
+    /** Clicks through the screen, the way the player would, rehearsing the silent click alongside. */
     private boolean click(VoteMenuView menu, int slot) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -375,6 +407,10 @@ final class VoteRun {
             return false;
         }
 
+        ClientPacketListener connection = client.getConnection();
+        if (connection != null) {
+            SilentClick.rehearse(SilentClick.build(menu, slot, connection));
+        }
         client.gameMode.handleContainerInput(menu.containerId(), slot, 0, ContainerInput.PICKUP, player);
         return true;
     }
@@ -386,6 +422,16 @@ final class VoteRun {
         if (player != null && menu != null && player.containerMenu.containerId == menu.containerId()) {
             player.closeContainer();
         }
+    }
+
+    /** The ping the server reports for us in the tab list, or 0 before it has. */
+    private static int ping() {
+        Minecraft client = Minecraft.getInstance();
+        ClientPacketListener connection = client.getConnection();
+        if (connection == null || client.player == null) return 0;
+
+        PlayerInfo info = connection.getPlayerInfo(client.player.getUUID());
+        return info == null ? 0 : info.getLatency();
     }
 
     private GameVotes.VotePair current() {

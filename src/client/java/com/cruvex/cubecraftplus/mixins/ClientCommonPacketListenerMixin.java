@@ -1,6 +1,7 @@
 package com.cruvex.cubecraftplus.mixins;
 
 import com.cruvex.cubecraftplus.autovote.MenuTracker;
+import com.cruvex.cubecraftplus.autovote.SilentClick;
 import com.cruvex.cubecraftplus.debug.MenuProbe;
 import net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl;
 import net.minecraft.network.protocol.Packet;
@@ -17,6 +18,7 @@ public class ClientCommonPacketListenerMixin {
     @Inject(method = "send", at = @At("HEAD"))
     private void onSend(Packet<?> packet, CallbackInfo ci) {
         MenuProbe.getInstance().onSend(packet);
+        SilentClick.onSent(packet);
         if (packet instanceof ServerboundContainerClosePacket close) {
             MenuTracker.getInstance().closedByClient(close.getContainerId());
         }
