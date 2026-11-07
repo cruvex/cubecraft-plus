@@ -65,6 +65,7 @@ final class VoteRun {
     private int voted;
     private int alreadyVoted;
     private boolean stoppedByPlayer;
+    private boolean stopped;
     private int index;
     private long startedAt;
     // Closes the player had sent before the run, so their Esc stops it
@@ -103,6 +104,11 @@ final class VoteRun {
     /** Whether menus opened during this run should be taken over instead of shown. */
     boolean hidesMenus() {
         return silent && step != Step.FINISHED;
+    }
+
+    /** A silent run that stopped early can still get a late answer to its last item use or click. */
+    boolean mayGetLateMenu() {
+        return silent && stopped;
     }
 
     /** Counts a vote that was already there as landed: either way it is in. */
@@ -398,6 +404,7 @@ final class VoteRun {
         if (step != Step.FINISHED) {
             retryable.addAll(votes.subList(Math.min(index, votes.size()), votes.size()));
         }
+        stopped = true;
         step = Step.FINISHED;
         closeMenu();
         restoreSelectedSlot();

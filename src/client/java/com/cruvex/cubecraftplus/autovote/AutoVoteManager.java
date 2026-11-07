@@ -14,7 +14,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.ItemStack;
@@ -39,6 +41,8 @@ public class AutoVoteManager {
     private static final int RETRY_DELAY_TICKS = 40;
     /** An item use 0.5s after connecting was ignored in 4 of 25 lobbies, while the server was still setting up. */
     private static final long CONNECT_SETTLE_MS = 1000;
+    /** How long after a silent run stops early a late menu is still hidden, so it never pops up on screen. */
+    private static final long LATE_MENU_MS = 3000;
     private static final Component TOAST_TITLE = Component.translatable("cubecraftplus.autovote.title");
 
     private static AutoVoteManager instance;
@@ -59,6 +63,7 @@ public class AutoVoteManager {
     private @Nullable VoteRun.Result firstResult;
     private List<GameVotes.VotePair> retryVotes = List.of();
     private int retryInTicks;
+    private long hideLateMenusUntil;
 
     public static AutoVoteManager getInstance() {
         if (instance == null) {
@@ -87,10 +92,16 @@ public class AutoVoteManager {
 
         if (run != null && !run.tick()) {
             VoteRun.Result result = run.result();
+            if (run.mayGetLateMenu()) {
+                hideLateMenusUntil = System.currentTimeMillis() + LATE_MENU_MS;
+            }
             run = null;
             if (runIsAutomatic) {
                 onAutomaticRunFinished(result);
             }
+        }
+        if (run == null) {
+            closeStrayMenu(client);
         }
 
         // Team games swap Team Selection for the voting item late, so this watches the slot rather than the join
@@ -235,7 +246,17 @@ public class AutoVoteManager {
 
     /** Whether a menu the server opens now belongs to a silent run, and gets no screen. */
     public boolean hidesMenus() {
-        return run != null && run.hidesMenus();
+        return run != null ? run.hidesMenus() : System.currentTimeMillis() < hideLateMenusUntil;
+    }
+
+    /** A hidden menu with no run to use it can only be a late answer; the server would keep it open otherwise. */
+    private static void closeStrayMenu(Minecraft client) {
+        ClientPacketListener connection = client.getConnection();
+        VoteMenuView menu = MenuTracker.getInstance().view();
+        if (connection == null || menu == null || !MenuTracker.getInstance().isHidden(menu.containerId())) return;
+
+        log("closing menu '{}', which opened after the run had ended", menu.title());
+        connection.send(new ServerboundContainerClosePacket(menu.containerId()));
     }
 
     private static boolean blockedByScreen(Minecraft client, boolean silent) {
