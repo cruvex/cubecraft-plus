@@ -7,7 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Turns the autovote config into the clicks AutoVoteManager performs. */
+/** Turns the autovote config into the clicks autovote performs. */
 public final class GameVotes {
 
     /** categorySlot -1 means the game has no category menu (BedWars): the voting item opens the vote menu itself. */
