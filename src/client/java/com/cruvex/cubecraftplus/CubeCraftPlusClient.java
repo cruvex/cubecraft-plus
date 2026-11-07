@@ -1,6 +1,7 @@
 package com.cruvex.cubecraftplus;
 
 import com.cruvex.cubecraftplus.autovote.AutoVoteConfigs;
+import com.cruvex.cubecraftplus.autovote.AutoVoteManager;
 import com.cruvex.cubecraftplus.chat.ChatQueryManager;
 import com.cruvex.cubecraftplus.chestfinder.ChestFinderManager;
 import com.cruvex.cubecraftplus.commands.CommandManager;
@@ -51,6 +52,7 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         // After the managers, so a signal is logged with the game they just concluded
         SignalProbe.getInstance().init();
         MenuProbe.getInstance().init();
+        AutoVoteManager.getInstance().init();
         LeaderboardSubmitManager.getInstance().init();
         CubeSocket.getInstance().init();
         UpdateChecker.getInstance().init();
