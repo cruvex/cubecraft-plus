@@ -59,6 +59,20 @@ Vote options are identified by lore ending in `N votes`. Filler slots are `rabbi
 - **The server never closes the menu after a vote.** It stays open until we leave it.
 - At game start the chat says `Selected Normal chest items.`, one line per category.
 
+## Rate limit and closing time (from the step 3 tests, 2026-11-07)
+
+- **Votes are rate limited.** A vote can be dropped with `You are voting too fast! Please slow down.`
+  in chat; the clicked slot is reverted without foil. Seen after a hand vote in the same category
+  1.2s and 2.1s earlier (three Chest Items votes in 3.5s), and on a hand vote too. Clicking again 1
+  second later was accepted. Three votes in different EggWars categories within 2.3s were all
+  accepted, so the limit looks per category, but that is not proven.
+- **One click got no answer at all**: no revert, no foil, no chat line, no rate-limit message. It came
+  3.3s after a hand vote in the same category and 81ms after `starting in 5 seconds`. A chest vote 38ms
+  after that line was accepted in another lobby, so the cause is unknown.
+- **SkyWars settles the projectile vote at `starting in 5 seconds`**: `Selected No throwables.` arrives
+  with that line, while chests and time are only announced at game start. EggWars announces all three
+  at game start. Whether a projectile vote after the 5-second mark still counts is unknown.
+
 ## Moving between menus
 
 - `Back` (slot 31) is a plain click and opens the category list again, placeholder first. Recorded 4
@@ -107,3 +121,7 @@ Vote options are identified by lore ending in `N votes`. Filler slots are `rabbi
    only give about 10 seconds to cast every vote.
 7. Trigger on the hotbar item staying for a few ticks, not on `GAME_JOIN`. Team games have it much later.
 8. Treat a close with id 0, or with the menu's own id, as "the menu is gone".
+9. Accept the own-vote chat line as confirmation too: it can beat the foil, and it still arrives when the
+   menu closed right after the click.
+10. On the rate-limit message, click again after a second. On a click with no answer, retry once.
+11. Vote as early as possible: in SkyWars the projectile vote is settled 5 seconds before the start.
