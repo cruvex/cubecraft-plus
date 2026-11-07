@@ -71,7 +71,12 @@ Vote options are identified by lore ending in `N votes`. Filler slots are `rabbi
   after that line was accepted in another lobby, so the cause is unknown.
 - **SkyWars settles the projectile vote at `starting in 5 seconds`**: `Selected No throwables.` arrives
   with that line, while chests and time are only announced at game start. EggWars announces all three
-  at game start. Whether a projectile vote after the 5-second mark still counts is unknown.
+  at game start.
+- **A closed category says so.** Clicking Projectile Options in the category list after that line got
+  `The votes for this category have been closed.` 24ms later, with the slot reverted and no submenu.
+  Chests still took a vote at the 4-second mark, so each category closes on its own schedule.
+- **Using the item while a submenu is open nests the new list under it**: the category list it opens has
+  `Back` in slot 31 instead of `Close`, though its title is still `Voting`. (Seen once, 2026-11-07.)
 
 ## Moving between menus
 
@@ -125,3 +130,7 @@ Vote options are identified by lore ending in `N votes`. Filler slots are `rabbi
    menu closed right after the click.
 10. On the rate-limit message, click again after a second. On a click with no answer, retry once.
 11. Vote as early as possible: in SkyWars the projectile vote is settled 5 seconds before the start.
+12. On "votes for this category have been closed", skip that category at once instead of retrying, so
+    the categories that are still open get their turn.
+13. Recognise the category list by its whole plain title (`Voting`, glyphs stripped), not by slot 31,
+    and close the open menu before using the item again.
