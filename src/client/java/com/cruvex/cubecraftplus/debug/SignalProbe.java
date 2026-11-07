@@ -85,6 +85,8 @@ public class SignalProbe {
 
     /** Chat lines worth their own signal type; everything else is still logged as CHAT. */
     private static final List<ChatMarker> CHAT_MARKERS = List.of(
+            // The mod's own debug lines, first so they never pass for the server lines they describe
+            new ChatMarker("CHAT_DEBUG", text -> text.startsWith("[Debug]")),
             new ChatMarker("CHAT_START", text -> text.equals("Let the games begin!")),
             new ChatMarker("CHAT_COUNTDOWN", text -> COUNTDOWN_PATTERN.matcher(text).matches()),
             new ChatMarker("CHAT_THANKS", text -> text.startsWith("Thank you for playing")),
