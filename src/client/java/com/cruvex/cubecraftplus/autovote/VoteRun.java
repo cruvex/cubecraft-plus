@@ -45,8 +45,11 @@ final class VoteRun {
     private final int hotbarSlot;
     private final List<String> failures = new ArrayList<>();
     private final List<String> closed = new ArrayList<>();
+    // Failed votes and the ones a stop left untried, which a later run can try again
+    private final List<GameVotes.VotePair> retryable = new ArrayList<>();
     private int voted;
     private int alreadyVoted;
+    private boolean stoppedByPlayer;
     private int index;
     private long startedAt;
     // Closes the player had sent before the run, so their Esc stops it
@@ -65,9 +68,20 @@ final class VoteRun {
     // Ticks until the vote is clicked again after a rate limit, 0 while no retry is pending
     private int retryInTicks;
 
+    /** How a finished run went, for the toast and for retrying what did not land. */
+    record Result(int total, int landed, List<String> closed, List<GameVotes.VotePair> retryable,
+                  boolean stoppedByPlayer) {
+    }
+
     VoteRun(List<GameVotes.VotePair> votes, int hotbarSlot) {
         this.votes = List.copyOf(votes);
         this.hotbarSlot = hotbarSlot;
+    }
+
+    /** Counts a vote that was already there as landed: either way it is in. */
+    Result result() {
+        return new Result(votes.size(), voted + alreadyVoted, List.copyOf(closed), List.copyOf(retryable),
+                stoppedByPlayer);
     }
 
     void start() {
@@ -82,6 +96,7 @@ final class VoteRun {
     boolean tick() {
         if (step == Step.FINISHED) return false;
         if (MenuTracker.getInstance().clientCloses() > closesBefore) {
+            stoppedByPlayer = true;
             stop("the menu was closed by the player");
             return false;
         }
@@ -240,6 +255,7 @@ final class VoteRun {
 
     private void failVote(String reason) {
         failures.add(current().submenuTitle() + " (" + reason + ")");
+        retryable.add(current());
         AutoVoteManager.log("run: '{}' failed, {}", current().submenuTitle(), reason);
         nextVote();
     }
@@ -309,8 +325,11 @@ final class VoteRun {
         AutoVoteManager.log("run: finished, {}", summary());
     }
 
-    /** Ends the run without trying the votes that are left. */
+    /** Ends the run without trying the votes that are left, the current one included. */
     private void stop(String reason) {
+        if (step != Step.FINISHED) {
+            retryable.addAll(votes.subList(Math.min(index, votes.size()), votes.size()));
+        }
         step = Step.FINISHED;
         closeMenu();
         AutoVoteManager.log("run: stopped, {}; {}", reason, summary());

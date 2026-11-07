@@ -7,28 +7,35 @@ import com.cruvex.cubecraftplus.debug.SignalProbe;
 import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.CubeEvents;
 import com.cruvex.cubecraftplus.game.GameManager;
+import com.cruvex.cubecraftplus.gui.toast.ModToast;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.helpers.MessageFormatter;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
- * Starts a round once the voting item has settled in the hotbar, which for now only reports what it would vote.
- * Votes are cast by hand through {@link #runOnce()} until the flow is proven.
+ * Votes once per round, as soon as the voting item has settled in the hotbar and no screen is in the way. Failed
+ * votes get one more run a little later, and the outcome shows as a toast.
  */
 public class AutoVoteManager {
 
     private static final String VOTING_ITEM_NAME = "Voting";
     /** How long the item has to stay, and then stay gone: a join can drop it for a tick. */
     private static final int SETTLE_TICKS = 10;
+    private static final int RETRY_DELAY_TICKS = 40;
+    private static final Component TOAST_TITLE = Component.translatable("cubecraftplus.autovote.title");
 
     private static AutoVoteManager instance;
 
@@ -36,7 +43,17 @@ public class AutoVoteManager {
     private int absentTicks;
     private boolean roundActive;
     private long roundStartedAt;
+    private @Nullable AutoVoteConfiguration roundConfiguration;
+
     private @Nullable VoteRun run;
+    private boolean runIsAutomatic;
+    // Set when a round starts with autovote on, until the run can start
+    private boolean autoPending;
+    private boolean waitingLogged;
+    // The round's first automatic run, kept so the toast can cover a retry too
+    private @Nullable VoteRun.Result firstResult;
+    private List<GameVotes.VotePair> retryVotes = List.of();
+    private int retryInTicks;
 
     public static AutoVoteManager getInstance() {
         if (instance == null) {
@@ -61,7 +78,11 @@ public class AutoVoteManager {
         if (player == null || !CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
         if (run != null && !run.tick()) {
+            VoteRun.Result result = run.result();
             run = null;
+            if (runIsAutomatic) {
+                onAutomaticRunFinished(result);
+            }
         }
 
         // Team games swap Team Selection for the voting item late, so this watches the slot rather than the join
@@ -81,18 +102,92 @@ public class AutoVoteManager {
                 endRound("voting item gone");
             }
         }
+
+        tickAutomatic(client);
     }
 
     private void startRound(AutoVoteConfiguration configuration) {
         roundActive = true;
         roundStartedAt = System.currentTimeMillis();
+        roundConfiguration = configuration;
 
         ModConfig.AutoVoteConfig config = ConfigManager.getInstance().getConfig().autoVote;
-        log("round started for {} ({}, {}), would vote: {}",
+        autoPending = config.enabled;
+        log("round started for {} ({}, {}), votes: {}",
                 configuration.gameName(),
                 config.enabled ? "enabled" : "disabled",
                 config.silent ? "silent" : "visible",
                 describeVotes(configuration, config));
+    }
+
+    /** Starts the round's run once nothing is in the way, and its retry once the delay is up. */
+    private void tickAutomatic(Minecraft client) {
+        if (!roundActive || run != null || roundConfiguration == null) return;
+
+        if (retryInTicks > 0) {
+            if (--retryInTicks == 0) {
+                log("retrying {} vote(s) that did not land", retryVotes.size());
+                startRun(retryVotes, true);
+            }
+            return;
+        }
+        if (!autoPending) return;
+
+        // A visible run would replace whatever the player has open
+        if (client.gui.screen() != null) {
+            if (!waitingLogged) {
+                waitingLogged = true;
+                log("waiting for the open screen to close before voting");
+            }
+            return;
+        }
+
+        autoPending = false;
+        List<GameVotes.VotePair> votes = GameVotes.forGame(
+                GameManager.getInstance().getCurrentGame(), ConfigManager.getInstance().getConfig().autoVote);
+        if (votes.isEmpty()) {
+            log("every category is set to don't vote, nothing to do");
+            return;
+        }
+        startRun(votes, true);
+    }
+
+    private void onAutomaticRunFinished(VoteRun.Result result) {
+        if (firstResult == null) {
+            firstResult = result;
+            if (!result.retryable().isEmpty() && !result.stoppedByPlayer()) {
+                retryVotes = result.retryable();
+                retryInTicks = RETRY_DELAY_TICKS;
+                return;
+            }
+            showToast(result, result.retryable(), result.closed());
+            return;
+        }
+
+        // The retry only covered what the first run left, so the toast adds the two up
+        Set<String> closed = new LinkedHashSet<>(firstResult.closed());
+        closed.addAll(result.closed());
+        VoteRun.Result combined = new VoteRun.Result(firstResult.total(), firstResult.landed() + result.landed(),
+                List.copyOf(closed), result.retryable(), result.stoppedByPlayer());
+        showToast(combined, combined.retryable(), combined.closed());
+    }
+
+    private static void showToast(VoteRun.Result result, List<GameVotes.VotePair> failed, List<String> closed) {
+        MutableComponent message = Component.translatable("cubecraftplus.autovote.toast.voted",
+                result.landed(), result.total());
+        if (!closed.isEmpty()) {
+            message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.closed",
+                    String.join(", ", closed)));
+        }
+        if (result.stoppedByPlayer()) {
+            message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.stopped"));
+        } else if (!failed.isEmpty()) {
+            message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.failed",
+                    String.join(", ", failed.stream().map(GameVotes.VotePair::submenuTitle).toList())));
+        }
+
+        boolean allIn = result.landed() == result.total();
+        ModToast.show(allIn ? ModToast.Icon.CUBEPANION_HAPPY : ModToast.Icon.CUBEPANION_SAD, TOAST_TITLE, message);
     }
 
     /** Casts every configured vote now, for testing the flow by hand. Returns what happened, for the command. */
@@ -115,9 +210,17 @@ public class AutoVoteManager {
                 GameVotes.forGame(GameManager.getInstance().getCurrentGame(), ConfigManager.getInstance().getConfig().autoVote);
         if (votes.isEmpty()) return "Every category is set to don't vote";
 
-        run = new VoteRun(votes, configuration.hotbarSlot());
-        run.start();
+        roundConfiguration = configuration;
+        startRun(votes, false);
         return "Voting in " + votes.size() + " categories, see debug chat";
+    }
+
+    private void startRun(List<GameVotes.VotePair> votes, boolean automatic) {
+        if (roundConfiguration == null) return;
+
+        runIsAutomatic = automatic;
+        run = new VoteRun(votes, roundConfiguration.hotbarSlot());
+        run.start();
     }
 
     private void endRound(String reason) {
@@ -125,13 +228,23 @@ public class AutoVoteManager {
             run.abandon(reason);
             run = null;
         }
+        // A retry the round ended before still owes the player the first run's outcome
+        if (retryInTicks > 0 && firstResult != null) {
+            showToast(firstResult, firstResult.retryable(), firstResult.closed());
+        }
         if (roundActive) {
             log("round over ({}) after {}s", reason,
                     String.format(Locale.ROOT, "%.1f", (System.currentTimeMillis() - roundStartedAt) / 1000.0));
         }
         roundActive = false;
+        roundConfiguration = null;
         presentTicks = 0;
         absentTicks = 0;
+        autoPending = false;
+        waitingLogged = false;
+        firstResult = null;
+        retryVotes = List.of();
+        retryInTicks = 0;
     }
 
     private static String describeVotes(AutoVoteConfiguration configuration, ModConfig.AutoVoteConfig config) {
