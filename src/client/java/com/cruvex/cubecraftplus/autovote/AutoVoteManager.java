@@ -29,16 +29,14 @@ import java.util.Locale;
 public class AutoVoteManager {
 
     private static final String VOTING_ITEM_NAME = "Voting";
+    private static final int PRESENT_TICKS = 2;
     // A join can drop the item for a tick
-    private static final int SETTLE_TICKS = 10;
+    private static final int GONE_TICKS = 10;
     private static final int RETRY_DELAY_TICKS = 40;
-    // Item uses right after connecting were sometimes ignored while the server set the lobby up
-    private static final long CONNECT_SETTLE_MS = 1000;
     private static final long LATE_MENU_MS = 3000;
 
     private static AutoVoteManager instance;
 
-    private long connectedAt;
     private int presentTicks;
     private int absentTicks;
     private boolean roundActive;
@@ -68,10 +66,7 @@ public class AutoVoteManager {
                 run.onChat(message.getString());
             }
         });
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            connectedAt = System.currentTimeMillis();
-            endRound("joined server");
-        });
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> endRound("joined server"));
         CubeEvents.GAME_JOIN.register(game -> endRound("joined game " + game.name()));
     }
 
@@ -101,12 +96,12 @@ public class AutoVoteManager {
 
         if (present) {
             absentTicks = 0;
-            if (!roundActive && ++presentTicks >= SETTLE_TICKS) {
+            if (!roundActive && ++presentTicks >= PRESENT_TICKS) {
                 startRound(configuration);
             }
         } else {
             presentTicks = 0;
-            if (roundActive && ++absentTicks >= SETTLE_TICKS) {
+            if (roundActive && ++absentTicks >= GONE_TICKS) {
                 endRound("voting item gone");
             }
         }
@@ -139,7 +134,9 @@ public class AutoVoteManager {
             return;
         }
         if (!autoPending) return;
-        if (System.currentTimeMillis() - connectedAt < CONNECT_SETTLE_MS) return;
+        // The server ignores item uses until the client reports the level loaded
+        ClientPacketListener connection = client.getConnection();
+        if (connection == null || !connection.hasClientLoaded()) return;
 
         if (blockedByScreen(client, ConfigManager.getInstance().getConfig().autoVote.silent)) {
             if (!waitingLogged) {
