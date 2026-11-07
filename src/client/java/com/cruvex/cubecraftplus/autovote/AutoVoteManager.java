@@ -35,10 +35,13 @@ public class AutoVoteManager {
     /** How long the item has to stay, and then stay gone: a join can drop it for a tick. */
     private static final int SETTLE_TICKS = 10;
     private static final int RETRY_DELAY_TICKS = 40;
+    /** An item use 0.5s after connecting was ignored in 4 of 25 lobbies, while the server was still setting up. */
+    private static final long CONNECT_SETTLE_MS = 1000;
     private static final Component TOAST_TITLE = Component.translatable("cubecraftplus.autovote.title");
 
     private static AutoVoteManager instance;
 
+    private long connectedAt;
     private int presentTicks;
     private int absentTicks;
     private boolean roundActive;
@@ -69,7 +72,10 @@ public class AutoVoteManager {
                 run.onChat(message.getString());
             }
         });
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> endRound("joined server"));
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            connectedAt = System.currentTimeMillis();
+            endRound("joined server");
+        });
         CubeEvents.GAME_JOIN.register(game -> endRound("joined game " + game.name()));
     }
 
@@ -132,6 +138,7 @@ public class AutoVoteManager {
             return;
         }
         if (!autoPending) return;
+        if (System.currentTimeMillis() - connectedAt < CONNECT_SETTLE_MS) return;
 
         // A visible run would replace whatever the player has open
         if (client.gui.screen() != null) {
