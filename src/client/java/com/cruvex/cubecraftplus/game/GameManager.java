@@ -117,7 +117,7 @@ public class GameManager {
     private void onEndTick(Minecraft client) {
         tick++;
 
-        if (since(pendingDeathTick) > RESPAWN_TIMEOUT_TICKS) {
+        if (pendingDeathTick != NEVER && since(pendingDeathTick) > RESPAWN_TIMEOUT_TICKS) {
             pendingDeathTick = NEVER;
             eliminate("died without respawning");
         }
