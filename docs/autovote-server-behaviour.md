@@ -75,6 +75,13 @@ Vote options are identified by lore ending in `N votes`. Filler slots are `rabbi
 - **A closed category says so.** Clicking Projectile Options in the category list after that line got
   `The votes for this category have been closed.` 24ms later, with the slot reverted and no submenu.
   Chests still took a vote at the 4-second mark, so each category closes on its own schedule.
+- **The rate limit spans lobbies.** Hopping lobbies every few seconds, the third Chest Items vote in 12
+  seconds (each in a different lobby) got `too fast` three times in a row; a run 2 seconds later went
+  through. (2026-11-07, automatic runs.)
+- **An item use too soon after connecting can be ignored.** In 4 of about 25 SkyWars joins, using the
+  item 0.51s after connecting opened nothing, and using it again a second later worked. In one of them
+  the server reset the held slot to 4 at +0.66s, as if it was still setting up the lobby. Uses from
+  0.52s on usually worked, so the cut-off varies.
 - **Using the item while a submenu is open nests the new list under it**: the category list it opens has
   `Back` in slot 31 instead of `Close`, though its title is still `Voting`. (Seen once, 2026-11-07.)
 
@@ -134,3 +141,5 @@ Vote options are identified by lore ending in `N votes`. Filler slots are `rabbi
     the categories that are still open get their turn.
 13. Recognise the category list by its whole plain title (`Voting`, glyphs stripped), not by slot 31,
     and close the open menu before using the item again.
+14. Do not use the item in the first second after connecting.
+15. A rate-limited category is worth one more run a couple of seconds later; that is what fixed it.
