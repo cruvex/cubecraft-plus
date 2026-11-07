@@ -95,7 +95,7 @@ public class AutoVoteManager {
                 describeVotes(configuration, config));
     }
 
-    /** Casts the first configured vote now, for testing the flow by hand. Returns what happened, for the command. */
+    /** Casts every configured vote now, for testing the flow by hand. Returns what happened, for the command. */
     public String runOnce() {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -115,9 +115,9 @@ public class AutoVoteManager {
                 GameVotes.forGame(GameManager.getInstance().getCurrentGame(), ConfigManager.getInstance().getConfig().autoVote);
         if (votes.isEmpty()) return "Every category is set to don't vote";
 
-        run = new VoteRun(votes.get(0), configuration.hotbarSlot());
-        run.start(client, player);
-        return "Voting in '" + votes.get(0).submenuTitle() + "', see debug chat";
+        run = new VoteRun(votes, configuration.hotbarSlot());
+        run.start();
+        return "Voting in " + votes.size() + " categories, see debug chat";
     }
 
     private void endRound(String reason) {

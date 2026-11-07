@@ -23,9 +23,13 @@ public record VoteMenuView(int containerId, int openCount, int stateId, String t
     private static final String MAIN_MENU_TITLE = "voting";
     private static final Pattern VOTE_COUNT = Pattern.compile("\\d+ votes?");
 
-    /** The list of categories, which the voting item opens in games that have more than one. */
+    /**
+     * The list of categories, which the voting item opens in games that have more than one. Matched on the whole
+     * title, since submenus such as "Perk Voting" contain the word too, and with either button in slot 31: using
+     * the item while a submenu is still open gives a list with Back instead of Close.
+     */
     public boolean isCategoryList() {
-        return isTopLevel() && titleContains(MAIN_MENU_TITLE);
+        return (isTopLevel() || isSubmenu()) && plainTitle().equalsIgnoreCase(MAIN_MENU_TITLE);
     }
 
     /** The menu holding one category's options: a submenu, or the top level in games without categories. */
@@ -66,6 +70,15 @@ public record VoteMenuView(int containerId, int openCount, int stateId, String t
 
     private boolean titleContains(String text) {
         return title.toLowerCase(Locale.ROOT).contains(text.toLowerCase(Locale.ROOT));
+    }
+
+    /** The title without the custom-font glyphs CubeCraft draws the menu background with. */
+    private String plainTitle() {
+        StringBuilder plain = new StringBuilder();
+        title.codePoints()
+                .filter(codePoint -> Character.getType(codePoint) != Character.PRIVATE_USE)
+                .forEach(plain::appendCodePoint);
+        return plain.toString().trim();
     }
 
     private String variant(int slot) {

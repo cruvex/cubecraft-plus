@@ -25,6 +25,7 @@ public final class MenuTracker {
     private List<ItemStack> items = List.of();
     // Every open counts, so a caller can tell the menu it acted on from the one that answered
     private int opens;
+    private int clientCloses;
 
     public static MenuTracker getInstance() {
         if (instance == null) {
@@ -70,6 +71,7 @@ public final class MenuTracker {
 
     /** We closed it ourselves, through Esc or a close packet of our own. */
     public void closedByClient(int containerId) {
+        clientCloses++;
         if (containerId == this.containerId) {
             forget();
         }
@@ -77,6 +79,11 @@ public final class MenuTracker {
 
     public int opens() {
         return opens;
+    }
+
+    /** Closes sent from this client, for any menu: how a run notices the player pressing Esc. */
+    public int clientCloses() {
+        return clientCloses;
     }
 
     /** The open menu as it stands now, or null when there is none. */
