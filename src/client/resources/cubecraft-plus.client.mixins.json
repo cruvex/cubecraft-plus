@@ -5,7 +5,8 @@
 	"client": [
 		"ClientCommonPacketListenerMixin",
 		"ClientPacketListenerMixin",
-		"MenuProbeMixin"
+		"MenuProbeMixin",
+		"MenuTrackerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
