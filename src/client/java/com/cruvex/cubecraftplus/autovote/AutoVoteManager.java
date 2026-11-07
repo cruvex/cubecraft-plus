@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -259,8 +260,13 @@ public class AutoVoteManager {
         connection.send(new ServerboundContainerClosePacket(menu.containerId()));
     }
 
+    /**
+     * The pause menu never holds a run up: Minecraft opens it by itself when the window loses focus, and opens it
+     * again once our menus close, so a player who tabbed out still gets their votes.
+     */
     private static boolean blockedByScreen(Minecraft client, boolean silent) {
         Screen screen = client.gui.screen();
+        if (screen instanceof PauseScreen) return false;
         return silent ? screen instanceof AbstractContainerScreen<?> : screen != null;
     }
 
