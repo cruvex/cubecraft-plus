@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
-/** A snapshot of one menu and the markers CubeCraft's voting menus carry (docs/autovote-server-behaviour.md). */
+/** A snapshot of one menu and the markers CubeCraft's voting menus carry. */
 public record VoteMenuView(int containerId, int openCount, int stateId, String title, List<ItemStack> items) {
 
     // Close on a top-level menu, Back on a submenu
