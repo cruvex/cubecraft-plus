@@ -82,6 +82,15 @@ Vote options are identified by lore ending in `N votes`. Filler slots are `rabbi
   item 0.51s after connecting opened nothing, and using it again a second later worked. In one of them
   the server reset the held slot to 4 at +0.66s, as if it was still setting up the lobby. Uses from
   0.52s on usually worked, so the cut-off varies.
+- **Other regions are slower but behave the same.** On an Asia server (`a131b`) each step took 200-500ms
+  instead of 50-150ms, a full run 3 seconds. In private games the voting item only appeared 12-14
+  seconds after joining. (2026-11-07.)
+- **The chat line can beat the menu's resync.** In EggWars our Back click went out 1ms before the
+  contents packet that put the voted option's foil in place. Vanilla still thought the option was on
+  the cursor, so its click predicted swapping it into slot 31, with a stale stateId. Back still worked.
+- **Our silent click matches vanilla's.** In 47 of 48 rehearsed clicks every field, hashes included, was
+  the same; the one difference was the stale cursor above. (`HashedPatchMap` keeps its hashes in an
+  `IdentityHashMap`, so comparing two with `equals` reports a difference even when every number matches.)
 - **Using the item while a submenu is open nests the new list under it**: the category list it opens has
   `Back` in slot 31 instead of `Close`, though its title is still `Voting`. (Seen once, 2026-11-07.)
 
@@ -143,3 +152,5 @@ Vote options are identified by lore ending in `N votes`. Filler slots are `rabbi
     and close the open menu before using the item again.
 14. Do not use the item in the first second after connecting.
 15. A rate-limited category is worth one more run a couple of seconds later; that is what fixed it.
+16. After a chat confirmation, wait for the menu to resync before the next click.
+17. Scale timeouts with ping: four round trips, never under a second.
