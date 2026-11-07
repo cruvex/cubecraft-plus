@@ -3,74 +3,56 @@ package com.cruvex.cubecraftplus.autovote;
 import com.cruvex.cubecraftplus.config.ConfigManager;
 import com.cruvex.cubecraftplus.config.ModConfig;
 import com.cruvex.cubecraftplus.debug.Debug;
+import com.cruvex.cubecraftplus.debug.SignalProbe;
 import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.CubeEvents;
-import com.cruvex.cubecraftplus.game.Game;
 import com.cruvex.cubecraftplus.game.GameManager;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.ContainerScreen;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.helpers.MessageFormatter;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-/** Automatically votes in CubeCraft pre-game lobbies for the games defined in {@link GameVotes}. */
+/** Votes once per round as soon as the voting item settles in the hotbar, and retries what failed once. */
 public class AutoVoteManager {
+
+    private static final String VOTING_ITEM_NAME = "Voting";
+    // A join can drop the item for a tick
+    private static final int SETTLE_TICKS = 10;
+    private static final int RETRY_DELAY_TICKS = 40;
+    // Item uses right after connecting were sometimes ignored while the server set the lobby up
+    private static final long CONNECT_SETTLE_MS = 1000;
+    private static final long LATE_MENU_MS = 3000;
 
     private static AutoVoteManager instance;
 
-    private static final String VOTING_ITEM_NAME = "Voting";
-    private static final String MAIN_MENU_MARKER = "voting";
-    // Large chest plus player inventory
-    private static final int MIN_MENU_SLOTS = 70;
-    private static final int ARM_DELAY_TICKS = 2;
-    private static final int RETURN_DELAY_TICKS = 2;
-    private static final int STATE_TIMEOUT_TICKS = 100;
-    private static final int USE_RETRY_TICKS = 20;
+    private long connectedAt;
+    private int presentTicks;
+    private int absentTicks;
+    private boolean roundActive;
+    private long roundStartedAt;
+    private @Nullable AutoVoteConfiguration roundConfiguration;
 
-    private static final Pattern VOTE_CONFIRMED_PATTERN =
-            Pattern.compile("(?:.{0,5} |)([a-zA-Z0-9_]{2,16})(?: .{0,5}|) voted for [a-zA-Z ]+\\. \\d+ votes?");
-    private static final Pattern GAME_STARTING_PATTERN =
-            Pattern.compile("[a-zA-Z ]+ is starting in 5 seconds\\.");
-
-    private enum State {
-        IDLE,         // not in a votable pre-game lobby, or this round was already handled
-        ARMED,        // voting item detected; short countdown before using it
-        OPENING_MAIN, // waiting for the main voting menu; clicks the next category once populated
-        OPENING_SUB,  // waiting for the vote menu; clicks the vote option once populated
-        VOTING        // vote clicked; short delay, then return to main menu or close
-    }
-
-    private State state = State.IDLE;
-    private int stateTicks;
-    private int delayTicks;
-    private int voteIndex;
-    private List<GameVotes.VotePair> votes = List.of();
-    private int votingHotbarSlot = -1;
-    // Menu we last clicked in
-    private int lastContainerId = -1;
-    private boolean attemptedThisRound;
-    private boolean voteConfirmed;
-    // The silent option as it stood when this round armed
-    private boolean silent;
-    // Redraws the menu had when the vote was clicked
-    private int voteRedraws;
+    private @Nullable VoteRun run;
+    private boolean runIsAutomatic;
+    private boolean autoPending;
+    private boolean waitingLogged;
+    private boolean retried;
+    private List<GameVotes.VotePair> retryVotes = List.of();
+    private int retryInTicks;
+    private long hideLateMenusUntil;
 
     public static AutoVoteManager getInstance() {
         if (instance == null) {
@@ -81,273 +63,219 @@ public class AutoVoteManager {
 
     public void init() {
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndTick);
-        ScreenEvents.AFTER_INIT.register(this::onScreenInit);
-        ClientReceiveMessageEvents.GAME.register(this::onGameMessage);
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            if (run != null && !overlay) {
+                run.onChat(message.getString());
+            }
+        });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            RemoteMenu.getInstance().forget();
-            reset("joined server");
+            connectedAt = System.currentTimeMillis();
+            endRound("joined server");
         });
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            RemoteMenu.getInstance().forget();
-            reset("disconnected");
-        });
-        CubeEvents.GAME_JOIN.register(game -> reset("joined game " + game.name()));
+        CubeEvents.GAME_JOIN.register(game -> endRound("joined game " + game.name()));
     }
 
     private void onEndTick(Minecraft client) {
         LocalPlayer player = client.player;
-        if (player == null || client.gameMode == null || !CubeCraftManager.getInstance().isOnCubeCraft()) {
-            return;
+        if (player == null || !CubeCraftManager.getInstance().isOnCubeCraft()) return;
+
+        if (run != null && !run.tick()) {
+            List<GameVotes.VotePair> toRetry = run.toRetry();
+            if (run.mayGetLateMenu()) {
+                hideLateMenusUntil = System.currentTimeMillis() + LATE_MENU_MS;
+            }
+            run = null;
+            if (runIsAutomatic) {
+                scheduleRetry(toRetry);
+            }
+        }
+        if (run == null) {
+            closeStrayMenu(client);
         }
 
-        if (state != State.IDLE && ++stateTicks > STATE_TIMEOUT_TICKS) {
-            attemptedThisRound = true; // retried via the "starting in 5 seconds" chat line
-            abort("state " + state + " timed out");
-            return;
+        // Team games hand out the voting item late, so this watches the slot rather than the join
+        AutoVoteConfiguration configuration =
+                AutoVoteConfigs.getInstance().find(GameManager.getInstance().getCurrentGame());
+        boolean present = configuration != null
+                && isVotingItem(player.getInventory().getItem(configuration.hotbarSlot()));
+
+        if (present) {
+            absentTicks = 0;
+            if (!roundActive && ++presentTicks >= SETTLE_TICKS) {
+                startRound(configuration);
+            }
+        } else {
+            presentTicks = 0;
+            if (roundActive && ++absentTicks >= SETTLE_TICKS) {
+                endRound("voting item gone");
+            }
         }
 
-        switch (state) {
-            case IDLE -> tickIdle(client, player);
-            case ARMED -> tickArmed(client, player);
-            case OPENING_MAIN -> tickOpeningMain(client, player);
-            case OPENING_SUB -> tickOpeningSub(client, player);
-            case VOTING -> tickVoting();
-        }
+        tickAutomatic(client);
     }
 
-    private void tickIdle(Minecraft client, LocalPlayer player) {
-        Game game = GameManager.getInstance().getCurrentGame();
-        int hotbarSlot = GameVotes.hotbarSlotFor(game);
-        boolean hasVotingItem = hotbarSlot >= 0
-                && isVotingItem(player.getInventory().getItem(hotbarSlot));
-
-        if (!hasVotingItem) {
-            // The item is gone, so the round started or we left the lobby
-            if (attemptedThisRound || voteConfirmed) {
-                reset("voting item gone");
-            }
-            return;
-        }
-
-        if (attemptedThisRound || voteConfirmed) return;
+    private void startRound(AutoVoteConfiguration configuration) {
+        roundActive = true;
+        roundStartedAt = System.currentTimeMillis();
+        roundConfiguration = configuration;
 
         ModConfig.AutoVoteConfig config = ConfigManager.getInstance().getConfig().autoVote;
-        if (!config.enabled) return;
-        if (blockedByScreen(client, config.silent)) return;
-        votes = GameVotes.forGame(game, config);
-        if (votes.isEmpty()) return; // every category set to "don't vote"
-
-        Debug.log("AutoVote: voting item detected for {}, arming", game.name());
-        silent = config.silent;
-        votingHotbarSlot = hotbarSlot;
-        // Selected a tick ahead of the use packet, so the server has the carried item by then
-        player.getInventory().setSelectedSlot(hotbarSlot);
-        delayTicks = ARM_DELAY_TICKS;
-        setState(State.ARMED);
+        autoPending = config.enabled;
+        log("round started for {} ({}, {}), votes: {}",
+                configuration.gameName(),
+                config.enabled ? "enabled" : "disabled",
+                config.silent ? "silent" : "visible",
+                describeVotes(configuration, config));
     }
 
-    private void tickArmed(Minecraft client, LocalPlayer player) {
-        if (blockedByScreen(client, silent) || !isVotingItem(player.getInventory().getItem(votingHotbarSlot))) {
-            setState(State.IDLE);
+    private void tickAutomatic(Minecraft client) {
+        if (!roundActive || run != null || roundConfiguration == null) return;
+
+        if (retryInTicks > 0) {
+            if (--retryInTicks == 0) {
+                log("retrying {} vote(s) that did not land", retryVotes.size());
+                startRun(retryVotes, true);
+            }
             return;
         }
-        if (--delayTicks > 0) return;
+        if (!autoPending) return;
+        if (System.currentTimeMillis() - connectedAt < CONNECT_SETTLE_MS) return;
 
-        useVotingItem(client, player);
-        attemptedThisRound = true;
-        voteIndex = 0;
-        Debug.log("AutoVote: used voting item, waiting for first menu");
-        setState(votes.get(0).hasSubmenu() ? State.OPENING_MAIN : State.OPENING_SUB);
-    }
-
-    /** Uses the held voting item on the targeted block, then on air, the way a manual right click does. */
-    private void useVotingItem(Minecraft client, LocalPlayer player) {
-        player.getInventory().setSelectedSlot(votingHotbarSlot);
-        lastContainerId = player.containerMenu.containerId;
-
-        InteractionResult result = InteractionResult.PASS;
-        if (client.hitResult instanceof BlockHitResult blockHit && client.hitResult.getType() == HitResult.Type.BLOCK) {
-            result = client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, blockHit);
-        }
-        if (!result.consumesAction()) {
-            result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-        }
-        if (result.consumesAction()) {
-            ItemStack held = player.getItemInHand(InteractionHand.MAIN_HAND);
-            player.swing(InteractionHand.MAIN_HAND, held.getInteractAnimation(), false);
-        }
-    }
-
-    /** Uses the voting item again once a second while no menu has opened, and reports whether it did. */
-    private boolean retryUseIfNoMenu(Minecraft client, LocalPlayer player) {
-        if (RemoteMenu.getInstance().isOpen() || blockedByScreen(client, silent)) return false;
-        if (stateTicks % USE_RETRY_TICKS != 0) return false;
-        if (!isVotingItem(player.getInventory().getItem(votingHotbarSlot))) return false;
-
-        Debug.log("AutoVote: no menu after {} ticks, using voting item again", stateTicks);
-        useVotingItem(client, player);
-        return true;
-    }
-
-    private void tickOpeningMain(Minecraft client, LocalPlayer player) {
-        if (retryUseIfNoMenu(client, player)) return;
-
-        GameVotes.VotePair vote = votes.get(voteIndex);
-        VoteMenu menu = openMenu(expectedTitle(), true);
-        if (menu == null || !menu.hasItem(vote.categorySlot())) return;
-
-        menu.click(vote.categorySlot());
-        lastContainerId = menu.containerId();
-        Debug.log("AutoVote: clicked category slot {} ({})", vote.categorySlot(), vote.submenuTitle());
-        setState(State.OPENING_SUB);
-    }
-
-    private void tickOpeningSub(Minecraft client, LocalPlayer player) {
-        GameVotes.VotePair vote = votes.get(voteIndex);
-        // The entry state for games without a category menu, so the use can still need retrying
-        if (!vote.hasSubmenu() && retryUseIfNoMenu(client, player)) return;
-
-        VoteMenu menu = openMenu(expectedTitle(), true);
-        if (menu == null || !menu.hasItem(vote.voteSlot())) return;
-
-        menu.click(vote.voteSlot());
-        voteRedraws = RemoteMenu.getInstance().redraws();
-        Debug.log("AutoVote: voted slot {} in '{}'", vote.voteSlot(), vote.submenuTitle());
-        delayTicks = RETURN_DELAY_TICKS;
-        setState(State.VOTING);
-    }
-
-    private void tickVoting() {
-        if (!returnReady()) return;
-
-        GameVotes.VotePair vote = votes.get(voteIndex);
-        VoteMenu menu = openMenu(expectedTitle(), false);
-        if (menu == null) return;
-
-        voteIndex++;
-        if (voteIndex < votes.size()) {
-            if (vote.hasSubmenu()) {
-                menu.click(GameVotes.RETURN_SLOT);
-                lastContainerId = menu.containerId();
+        if (blockedByScreen(client, ConfigManager.getInstance().getConfig().autoVote.silent)) {
+            if (!waitingLogged) {
+                waitingLogged = true;
+                log("waiting for the open screen to close before voting");
             }
-            setState(votes.get(voteIndex).hasSubmenu() ? State.OPENING_MAIN : State.OPENING_SUB);
-        } else {
-            menu.close();
-            Debug.log("AutoVote: all votes cast");
-            setState(State.IDLE);
+            return;
         }
+
+        autoPending = false;
+        List<GameVotes.VotePair> votes = GameVotes.forGame(
+                GameManager.getInstance().getCurrentGame(), ConfigManager.getInstance().getConfig().autoVote);
+        if (votes.isEmpty()) {
+            log("every category is set to don't vote, nothing to do");
+            return;
+        }
+        startRun(votes, true);
     }
 
-    /** Whether the vote has been taken: the server's redraw when silent, a fixed delay otherwise. */
-    private boolean returnReady() {
-        return silent ? RemoteMenu.getInstance().redraws() > voteRedraws : --delayTicks <= 0;
+    private void scheduleRetry(List<GameVotes.VotePair> toRetry) {
+        if (retried || toRetry.isEmpty()) return;
+
+        retried = true;
+        retryVotes = toRetry;
+        retryInTicks = RETRY_DELAY_TICKS;
     }
 
-    private void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
-        if (state == State.IDLE) return;
-        Debug.log("AutoVote: screen opened in state {}: '{}'", state, screen.getTitle().getString());
-    }
-
-    private void onGameMessage(Component message, boolean overlay) {
-        if (overlay) return;
+    /** Casts every configured vote now, for testing by hand; returns what happened, for the command. */
+    public String runOnce() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !CubeCraftManager.getInstance().isOnCubeCraft()) return;
+        LocalPlayer player = client.player;
+        if (player == null || client.gameMode == null || !CubeCraftManager.getInstance().isOnCubeCraft()) {
+            return "Not on CubeCraft";
+        }
+        if (run != null) return "A run is already going";
 
-        String text = message.getString();
-
-        Matcher voteMatcher = VOTE_CONFIRMED_PATTERN.matcher(text);
-        if (voteMatcher.find()) {
-            if (voteMatcher.group(1).equalsIgnoreCase(client.player.getGameProfile().name())) {
-                Debug.log("AutoVote: own vote confirmed in chat");
-                voteConfirmed = true;
-            }
-            return;
+        AutoVoteConfiguration configuration =
+                AutoVoteConfigs.getInstance().find(GameManager.getInstance().getCurrentGame());
+        if (configuration == null) return "No voting config for this game";
+        if (!isVotingItem(player.getInventory().getItem(configuration.hotbarSlot()))) {
+            return "No voting item in hotbar slot " + (configuration.hotbarSlot() + 1);
         }
 
-        if (!voteConfirmed && state == State.IDLE && GAME_STARTING_PATTERN.matcher(text).find()) {
-            Debug.log("AutoVote: game starting without confirmed vote, allowing retry");
-            attemptedThisRound = false;
-        }
+        List<GameVotes.VotePair> votes =
+                GameVotes.forGame(GameManager.getInstance().getCurrentGame(), ConfigManager.getInstance().getConfig().autoVote);
+        if (votes.isEmpty()) return "Every category is set to don't vote";
+
+        roundConfiguration = configuration;
+        startRun(votes, false);
+        return "Voting in " + votes.size() + " categories, see debug chat";
     }
 
-    private Predicate<String> expectedTitle() {
-        if (voteIndex >= votes.size()) return title -> false;
+    private void startRun(List<GameVotes.VotePair> votes, boolean automatic) {
+        if (roundConfiguration == null) return;
 
-        String submenu = votes.get(voteIndex).submenuTitle().toLowerCase(Locale.ROOT);
-        return switch (state) {
-            case OPENING_MAIN -> title -> title.contains(MAIN_MENU_MARKER) && !title.contains(submenu);
-            case OPENING_SUB, VOTING -> title -> title.contains(submenu);
-            case IDLE, ARMED -> title -> false;
-        };
+        runIsAutomatic = automatic;
+        run = new VoteRun(votes, roundConfiguration.hotbarSlot(), ConfigManager.getInstance().getConfig().autoVote.silent);
+        run.start();
     }
 
-    public boolean isVoting() {
-        return state != State.IDLE;
+    /** Whether a menu the server opens now gets no screen. */
+    public boolean hidesMenus() {
+        return run != null ? run.hidesMenus() : System.currentTimeMillis() < hideLateMenusUntil;
     }
 
-    /** Whether a menu the server just opened is one to vote in without showing it. */
-    public boolean wantsMenu(String title) {
-        return silent && expectedTitle().test(title.toLowerCase(Locale.ROOT));
+    /** A hidden menu with no run to use it is a late answer, which the server would otherwise keep open. */
+    private static void closeStrayMenu(Minecraft client) {
+        ClientPacketListener connection = client.getConnection();
+        VoteMenuView menu = MenuTracker.getInstance().view();
+        if (connection == null || menu == null || !MenuTracker.getInstance().isHidden(menu.containerId())) return;
+
+        log("closing menu '{}', which opened after the run had ended", menu.title());
+        connection.send(new ServerboundContainerClosePacket(menu.containerId()));
     }
 
-    /** The open menu when its title matches and it is big enough, optionally rejecting the one last clicked in. */
-    @Nullable
-    private VoteMenu openMenu(Predicate<String> titleMatcher, boolean requireNewContainer) {
-        VoteMenu menu = currentMenu();
-        if (menu == null) return null;
-        if (requireNewContainer && menu.containerId() == lastContainerId) return null;
-        if (!titleMatcher.test(menu.title().toLowerCase(Locale.ROOT))) return null;
-        return menu.slotCount() >= MIN_MENU_SLOTS ? menu : null;
-    }
-
-    /** Read from the container packets when voting silently, off the open screen otherwise. */
-    @Nullable
-    private VoteMenu currentMenu() {
-        if (silent) {
-            RemoteMenu remote = RemoteMenu.getInstance();
-            return remote.isOpen() ? remote : null;
-        }
-        return Minecraft.getInstance().gui.screen() instanceof ContainerScreen screen
-                ? new ScreenMenu(screen)
-                : null;
-    }
-
-    /** Whether the open screen holds voting up: any screen when visible, containers when silent. */
-    private boolean blockedByScreen(Minecraft client, boolean silent) {
+    /** The pause menu never blocks: it opens by itself when the player tabs out. */
+    private static boolean blockedByScreen(Minecraft client, boolean silent) {
         Screen screen = client.gui.screen();
+        if (screen instanceof PauseScreen) return false;
         return silent ? screen instanceof AbstractContainerScreen<?> : screen != null;
     }
 
-    private boolean isVotingItem(ItemStack stack) {
+    private void endRound(String reason) {
+        if (run != null) {
+            run.abandon(reason);
+            run = null;
+        }
+        if (roundActive) {
+            log("round over ({}) after {}s", reason,
+                    String.format(Locale.ROOT, "%.1f", (System.currentTimeMillis() - roundStartedAt) / 1000.0));
+        }
+        roundActive = false;
+        roundConfiguration = null;
+        presentTicks = 0;
+        absentTicks = 0;
+        autoPending = false;
+        waitingLogged = false;
+        retried = false;
+        retryVotes = List.of();
+        retryInTicks = 0;
+    }
+
+    private static String describeVotes(AutoVoteConfiguration configuration, ModConfig.AutoVoteConfig config) {
+        List<String> votes = new ArrayList<>();
+        for (AutoVoteCategory category : configuration.categories()) {
+            int slot = GameVotes.slotFor(config, category);
+            if (slot < 0) {
+                votes.add(category.name() + " -> don't vote");
+                continue;
+            }
+
+            String route = category.choiceIndex() < 0 ? "direct" : "category slot " + category.choiceIndex();
+            votes.add(String.format(Locale.ROOT, "%s -> %s (menu '%s', %s, vote slot %d)",
+                    category.name(), optionName(category, slot), category.menuTitle(), route, slot));
+        }
+        return votes.isEmpty() ? "nothing" : String.join("; ", votes);
+    }
+
+    private static String optionName(AutoVoteCategory category, int slot) {
+        for (AutoVoteCategoryOption option : category.options()) {
+            if (option.slot() == slot) {
+                return option.name();
+            }
+        }
+        return "?";
+    }
+
+    static boolean isVotingItem(ItemStack stack) {
         return !stack.isEmpty() && VOTING_ITEM_NAME.equals(stack.getHoverName().getString());
     }
 
-    private void setState(State newState) {
-        if (newState != state) {
-            Debug.log("AutoVote: {} -> {}", state, newState);
+    /** To chat in debug mode, and into the signal log so a round lines up with the packets. */
+    static void log(String message, Object... args) {
+        Debug.log("AutoVote: " + message, args);
+        if (SignalProbe.getInstance().active()) {
+            SignalProbe.getInstance().signal("AUTOVOTE", "{}", MessageFormatter.arrayFormat(message, args).getMessage());
         }
-        this.state = newState;
-        this.stateTicks = 0;
-    }
-
-    /** Ends the round, closing the menu the server may still have open for us. */
-    private void abort(String reason) {
-        Debug.log("AutoVote: aborting ({})", reason);
-        RemoteMenu.getInstance().close();
-        setState(State.IDLE);
-    }
-
-    private void reset(String reason) {
-        Debug.log("AutoVote: reset ({})", reason);
-        RemoteMenu.getInstance().close();
-        setState(State.IDLE);
-        delayTicks = 0;
-        voteIndex = 0;
-        votes = List.of();
-        votingHotbarSlot = -1;
-        lastContainerId = -1;
-        attemptedThisRound = false;
-        voteConfirmed = false;
-        silent = false;
     }
 }
