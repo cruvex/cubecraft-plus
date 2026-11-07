@@ -91,6 +91,11 @@ Vote options are identified by lore ending in `N votes`. Filler slots are `rabbi
 - **Our silent click matches vanilla's.** In 47 of 48 rehearsed clicks every field, hashes included, was
   the same; the one difference was the stale cursor above. (`HashedPatchMap` keeps its hashes in an
   `IdentityHashMap`, so comparing two with `equals` reports a difference even when every number matches.)
+- **Silent voting works like the visible kind.** With the menus hidden and our own click and close
+  packets, runs took 650-850ms on EU and 3.3s on a 287ms-ping private server, all 3/3. Chat stayed open
+  through a whole run, and opening the inventory in the middle of one disturbed nothing. Not yet seen:
+  closing the inventory during a run, whose close for menu 0 might close the hidden menu server-side.
+  (2026-11-07.)
 - **Using the item while a submenu is open nests the new list under it**: the category list it opens has
   `Back` in slot 31 instead of `Close`, though its title is still `Voting`. (Seen once, 2026-11-07.)
 
