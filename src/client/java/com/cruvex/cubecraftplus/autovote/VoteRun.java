@@ -73,11 +73,6 @@ final class VoteRun {
     private int rateLimitRetriesLeft;
     private int retryInTicks;
 
-    /** A vote that was already there counts as landed. */
-    record Result(int total, int landed, List<String> closed, List<GameVotes.VotePair> retryable,
-                  boolean stoppedByPlayer) {
-    }
-
     VoteRun(List<GameVotes.VotePair> votes, int hotbarSlot, boolean silent) {
         this.votes = List.copyOf(votes);
         this.hotbarSlot = hotbarSlot;
@@ -93,9 +88,9 @@ final class VoteRun {
         return silent && stopped;
     }
 
-    Result result() {
-        return new Result(votes.size(), voted + alreadyVoted, List.copyOf(closed), List.copyOf(retryable),
-                stoppedByPlayer);
+    /** Votes worth another try; none once the player closed the menu themselves. */
+    List<GameVotes.VotePair> toRetry() {
+        return stoppedByPlayer ? List.of() : List.copyOf(retryable);
     }
 
     void start() {

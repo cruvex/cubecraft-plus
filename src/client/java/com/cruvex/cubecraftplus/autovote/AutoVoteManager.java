@@ -7,7 +7,6 @@ import com.cruvex.cubecraftplus.debug.SignalProbe;
 import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.game.CubeEvents;
 import com.cruvex.cubecraftplus.game.GameManager;
-import com.cruvex.cubecraftplus.gui.toast.ModToast;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -18,19 +17,15 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.helpers.MessageFormatter;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
-/** Votes once per round as soon as the voting item settles in the hotbar, retries what failed once, and shows a toast. */
+/** Votes once per round as soon as the voting item settles in the hotbar, and retries what failed once. */
 public class AutoVoteManager {
 
     private static final String VOTING_ITEM_NAME = "Voting";
@@ -40,7 +35,6 @@ public class AutoVoteManager {
     // Item uses right after connecting were sometimes ignored while the server set the lobby up
     private static final long CONNECT_SETTLE_MS = 1000;
     private static final long LATE_MENU_MS = 3000;
-    private static final Component TOAST_TITLE = Component.translatable("cubecraftplus.autovote.title");
 
     private static AutoVoteManager instance;
 
@@ -55,8 +49,7 @@ public class AutoVoteManager {
     private boolean runIsAutomatic;
     private boolean autoPending;
     private boolean waitingLogged;
-    // Kept so the toast after a retry covers both runs
-    private @Nullable VoteRun.Result firstResult;
+    private boolean retried;
     private List<GameVotes.VotePair> retryVotes = List.of();
     private int retryInTicks;
     private long hideLateMenusUntil;
@@ -87,13 +80,13 @@ public class AutoVoteManager {
         if (player == null || !CubeCraftManager.getInstance().isOnCubeCraft()) return;
 
         if (run != null && !run.tick()) {
-            VoteRun.Result result = run.result();
+            List<GameVotes.VotePair> toRetry = run.toRetry();
             if (run.mayGetLateMenu()) {
                 hideLateMenusUntil = System.currentTimeMillis() + LATE_MENU_MS;
             }
             run = null;
             if (runIsAutomatic) {
-                onAutomaticRunFinished(result);
+                scheduleRetry(toRetry);
             }
         }
         if (run == null) {
@@ -166,41 +159,12 @@ public class AutoVoteManager {
         startRun(votes, true);
     }
 
-    private void onAutomaticRunFinished(VoteRun.Result result) {
-        if (firstResult == null) {
-            firstResult = result;
-            if (!result.retryable().isEmpty() && !result.stoppedByPlayer()) {
-                retryVotes = result.retryable();
-                retryInTicks = RETRY_DELAY_TICKS;
-                return;
-            }
-            showToast(result);
-            return;
-        }
+    private void scheduleRetry(List<GameVotes.VotePair> toRetry) {
+        if (retried || toRetry.isEmpty()) return;
 
-        Set<String> closed = new LinkedHashSet<>(firstResult.closed());
-        closed.addAll(result.closed());
-        showToast(new VoteRun.Result(firstResult.total(), firstResult.landed() + result.landed(),
-                List.copyOf(closed), result.retryable(), result.stoppedByPlayer()));
-    }
-
-    private static void showToast(VoteRun.Result result) {
-        boolean allIn = result.landed() == result.total();
-        MutableComponent message = Component.translatable("cubecraftplus.autovote.toast.voted",
-                result.landed(), result.total());
-        if (!result.closed().isEmpty()) {
-            message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.closed",
-                    String.join(", ", result.closed())));
-        }
-        // Closing the menu after the last vote landed stopped nothing
-        if (result.stoppedByPlayer() && !allIn) {
-            message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.stopped"));
-        } else if (!result.retryable().isEmpty()) {
-            message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.failed",
-                    String.join(", ", result.retryable().stream().map(GameVotes.VotePair::submenuTitle).toList())));
-        }
-
-        ModToast.show(allIn ? ModToast.Icon.CUBEPANION_HAPPY : ModToast.Icon.CUBEPANION_SAD, TOAST_TITLE, message);
+        retried = true;
+        retryVotes = toRetry;
+        retryInTicks = RETRY_DELAY_TICKS;
     }
 
     /** Casts every configured vote now, for testing by hand; returns what happened, for the command. */
@@ -263,10 +227,6 @@ public class AutoVoteManager {
             run.abandon(reason);
             run = null;
         }
-        // A retry the round ended before still owes the player the first run's outcome
-        if (retryInTicks > 0 && firstResult != null) {
-            showToast(firstResult);
-        }
         if (roundActive) {
             log("round over ({}) after {}s", reason,
                     String.format(Locale.ROOT, "%.1f", (System.currentTimeMillis() - roundStartedAt) / 1000.0));
@@ -277,7 +237,7 @@ public class AutoVoteManager {
         absentTicks = 0;
         autoPending = false;
         waitingLogged = false;
-        firstResult = null;
+        retried = false;
         retryVotes = List.of();
         retryInTicks = 0;
     }
