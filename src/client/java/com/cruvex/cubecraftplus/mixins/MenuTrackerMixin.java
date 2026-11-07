@@ -1,6 +1,8 @@
 package com.cruvex.cubecraftplus.mixins;
 
+import com.cruvex.cubecraftplus.autovote.AutoVoteManager;
 import com.cruvex.cubecraftplus.autovote.MenuTracker;
+import com.cruvex.cubecraftplus.debug.MenuProbe;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundContainerClosePacket;
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
@@ -11,13 +13,36 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Feeds {@link MenuTracker} the inbound menu packets, at TAIL so each runs once, on the client thread. */
+/**
+ * Feeds {@link MenuTracker} the inbound menu packets, and hides the menus a silent vote opens. Every inject sits
+ * past PacketUtils.ensureRunningOnSameThread, so each runs once, on the client thread.
+ */
 @Mixin(ClientPacketListener.class)
 public class MenuTrackerMixin {
 
+    /**
+     * Takes the menu over instead of building a screen for it, so player.containerMenu stays the player's own
+     * inventory. The TAIL inject below never runs for it, so the tracker and probe are fed here.
+     */
+    @Inject(
+            method = "handleOpenScreen",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/screens/MenuScreens;create("
+                            + "Lnet/minecraft/world/inventory/MenuType;"
+                            + "Lnet/minecraft/client/Minecraft;I"
+                            + "Lnet/minecraft/network/chat/Component;)V"),
+            cancellable = true)
+    private void hideVoteMenu(ClientboundOpenScreenPacket packet, CallbackInfo ci) {
+        if (!AutoVoteManager.getInstance().hidesMenus()) return;
+
+        MenuTracker.getInstance().opened(packet.getContainerId(), packet.getTitle().getString(), true);
+        MenuProbe.getInstance().onOpenScreen(packet);
+        ci.cancel();
+    }
+
     @Inject(method = "handleOpenScreen", at = @At("TAIL"))
     private void onOpenScreen(ClientboundOpenScreenPacket packet, CallbackInfo ci) {
-        MenuTracker.getInstance().opened(packet.getContainerId(), packet.getTitle().getString());
+        MenuTracker.getInstance().opened(packet.getContainerId(), packet.getTitle().getString(), false);
     }
 
     @Inject(method = "handleContainerContent", at = @At("TAIL"))
@@ -29,6 +54,20 @@ public class MenuTrackerMixin {
     private void onContainerSetSlot(ClientboundContainerSetSlotPacket packet, CallbackInfo ci) {
         MenuTracker.getInstance().setSlot(
                 packet.getContainerId(), packet.getStateId(), packet.getSlot(), packet.getItem());
+    }
+
+    /** Vanilla closes whatever screen is open on any close, which would shut the player's chat for our hidden menu. */
+    @Inject(
+            method = "handleContainerClose",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/player/LocalPlayer;clientSideCloseContainer()V"),
+            cancellable = true)
+    private void keepScreenForHiddenMenu(ClientboundContainerClosePacket packet, CallbackInfo ci) {
+        if (!MenuTracker.getInstance().isHidden(packet.getContainerId())) return;
+
+        MenuTracker.getInstance().closedByServer(packet.getContainerId());
+        MenuProbe.getInstance().onClose(packet);
+        ci.cancel();
     }
 
     @Inject(method = "handleContainerClose", at = @At("TAIL"))

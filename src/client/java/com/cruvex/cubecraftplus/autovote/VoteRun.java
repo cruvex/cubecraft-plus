@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.ContainerInput;
 import org.jetbrains.annotations.Nullable;
@@ -25,6 +26,11 @@ final class VoteRun {
      */
     private static final int MIN_STEP_TIMEOUT_TICKS = 20;
     private static final int TIMEOUT_ROUND_TRIPS = 4;
+    /**
+     * The tab list ping is still 0 a second after joining, so the run also learns from its own steps: one took
+     * 799ms on a private server, against the usual 50-150ms.
+     */
+    private static final int TIMEOUT_SLOWEST_STEPS = 3;
     /** How long a vote confirmed by chat waits for the menu's own resync before moving on. */
     private static final int RESYNC_TICKS = 10;
 
@@ -51,6 +57,7 @@ final class VoteRun {
 
     private final List<GameVotes.VotePair> votes;
     private final int hotbarSlot;
+    private final boolean silent;
     private final List<String> failures = new ArrayList<>();
     private final List<String> closed = new ArrayList<>();
     // Failed votes and the ones a stop left untried, which a later run can try again
@@ -62,8 +69,10 @@ final class VoteRun {
     private long startedAt;
     // Closes the player had sent before the run, so their Esc stops it
     private int closesBefore;
+    private int previousSlot = -1;
 
     private int stepTimeoutTicks = MIN_STEP_TIMEOUT_TICKS;
+    private long slowestStepMs;
     private Step step = Step.FINISHED;
     private int stepTicks;
     private long stepStartedAt;
@@ -85,9 +94,15 @@ final class VoteRun {
                   boolean stoppedByPlayer) {
     }
 
-    VoteRun(List<GameVotes.VotePair> votes, int hotbarSlot) {
+    VoteRun(List<GameVotes.VotePair> votes, int hotbarSlot, boolean silent) {
         this.votes = List.copyOf(votes);
         this.hotbarSlot = hotbarSlot;
+        this.silent = silent;
+    }
+
+    /** Whether menus opened during this run should be taken over instead of shown. */
+    boolean hidesMenus() {
+        return silent && step != Step.FINISHED;
     }
 
     /** Counts a vote that was already there as landed: either way it is in. */
@@ -99,10 +114,12 @@ final class VoteRun {
     void start() {
         startedAt = System.currentTimeMillis();
         closesBefore = MenuTracker.getInstance().clientCloses();
+        LocalPlayer player = Minecraft.getInstance().player;
+        previousSlot = player == null ? -1 : player.getInventory().getSelectedSlot();
         int ping = ping();
         stepTimeoutTicks = Math.max(MIN_STEP_TIMEOUT_TICKS, (int) Math.ceil(ping * TIMEOUT_ROUND_TRIPS / 50.0));
-        AutoVoteManager.log("run: voting in {} categories (ping {}ms, step timeout {}ms)",
-                votes.size(), ping, stepTimeoutTicks * 50);
+        AutoVoteManager.log("run: voting in {} categories, {} (ping {}ms, step timeout {}ms)",
+                votes.size(), silent ? "silently" : "visibly", ping, stepTimeoutTicks * 50);
         beginVote();
         openVoting();
     }
@@ -110,10 +127,14 @@ final class VoteRun {
     /** Returns whether the run is still going. */
     boolean tick() {
         if (step == Step.FINISHED) return false;
-        if (MenuTracker.getInstance().clientCloses() > closesBefore) {
+        if (!stoppedByPlayer && MenuTracker.getInstance().clientCloses() > closesBefore) {
             stoppedByPlayer = true;
-            stop("the menu was closed by the player");
-            return false;
+            // A vote already clicked can still land, and its chat line still comes, so wait for that one
+            if (step != Step.CONFIRM_VOTE) {
+                stop("the menu was closed by the player");
+                return false;
+            }
+            AutoVoteManager.log("run: menu closed by the player, waiting for the last vote to confirm");
         }
         if (++stepTicks > stepTimeoutTicks) {
             onTimeout();
@@ -169,6 +190,7 @@ final class VoteRun {
         GameVotes.VotePair vote = current();
         if (!isNew(menu) || !menu.isCategoryList() || !menu.hasItem(vote.categorySlot())) return;
 
+        noteResponse();
         AutoVoteManager.log("run: category list open after {}ms, clicking slot {} ('{}')",
                 elapsed(), vote.categorySlot(), menu.name(vote.categorySlot()));
         opensBefore = MenuTracker.getInstance().opens();
@@ -195,6 +217,7 @@ final class VoteRun {
             return;
         }
 
+        noteResponse();
         AutoVoteManager.log("run: vote menu open after {}ms, clicking slot {} ('{}')", elapsed(), slot, optionName);
         if (click(menu, slot)) {
             setStep(Step.CONFIRM_VOTE);
@@ -229,6 +252,10 @@ final class VoteRun {
     /** Tries the step's action once more, the first time a vote times out, and gives up the second time. */
     private void onTimeout() {
         String waited = "timed out after " + elapsed() + "ms waiting to " + step.waitingTo;
+        if (stoppedByPlayer) {
+            stop("the menu was closed by the player, and the last vote never confirmed");
+            return;
+        }
         if (retried) {
             if (step == Step.OPEN_CATEGORY_LIST) {
                 stop(waited);
@@ -270,6 +297,10 @@ final class VoteRun {
 
     private void voteLanded(String confirmedBy) {
         voted++;
+        // A rate limit retry waits on purpose, which says nothing about the server's speed
+        if (rateLimitRetriesLeft == RATE_LIMIT_RETRIES) {
+            noteResponse();
+        }
         AutoVoteManager.log("run: voted for '{}' in '{}', confirmed by {} after {}ms",
                 optionName, current().submenuTitle(), confirmedBy, elapsed());
 
@@ -299,6 +330,10 @@ final class VoteRun {
         index++;
         if (index >= votes.size()) {
             finish();
+            return;
+        }
+        if (stoppedByPlayer) {
+            stop("the menu was closed by the player");
             return;
         }
 
@@ -354,6 +389,7 @@ final class VoteRun {
     private void finish() {
         step = Step.FINISHED;
         closeMenu();
+        restoreSelectedSlot();
         AutoVoteManager.log("run: finished, {}", summary());
     }
 
@@ -364,6 +400,7 @@ final class VoteRun {
         }
         step = Step.FINISHED;
         closeMenu();
+        restoreSelectedSlot();
         AutoVoteManager.log("run: stopped, {}; {}", reason, summary());
     }
 
@@ -393,13 +430,21 @@ final class VoteRun {
         return menu != null && menu.openCount() > opensBefore;
     }
 
-    /** Clicks through the screen, the way the player would, rehearsing the silent click alongside. */
+    /**
+     * Sends our own click for a hidden menu, and otherwise clicks through the screen the way the player would,
+     * rehearsing the silent click alongside.
+     */
     private boolean click(VoteMenuView menu, int slot) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
-        if (player == null || client.gameMode == null) {
+        ClientPacketListener connection = client.getConnection();
+        if (player == null || client.gameMode == null || connection == null) {
             stop("no player to click with");
             return false;
+        }
+        if (MenuTracker.getInstance().isHidden(menu.containerId())) {
+            connection.send(SilentClick.build(menu, slot, connection));
+            return true;
         }
         if (player.containerMenu.containerId != menu.containerId()) {
             stop("the screen shows menu " + player.containerMenu.containerId
@@ -407,20 +452,34 @@ final class VoteRun {
             return false;
         }
 
-        ClientPacketListener connection = client.getConnection();
-        if (connection != null) {
-            SilentClick.rehearse(SilentClick.build(menu, slot, connection));
-        }
+        SilentClick.rehearse(SilentClick.build(menu, slot, connection));
         client.gameMode.handleContainerInput(menu.containerId(), slot, 0, ContainerInput.PICKUP, player);
         return true;
     }
 
-    /** Closes the menu we left open, when it is still the one on screen. */
+    /**
+     * Closes the menu we left open: a hidden one with a close packet of our own, which leaves whatever the player
+     * has on screen alone, and a visible one through the screen.
+     */
     private void closeMenu() {
-        LocalPlayer player = Minecraft.getInstance().player;
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
+        ClientPacketListener connection = client.getConnection();
         VoteMenuView menu = MenuTracker.getInstance().view();
-        if (player != null && menu != null && player.containerMenu.containerId == menu.containerId()) {
+        if (player == null || connection == null || menu == null) return;
+
+        if (MenuTracker.getInstance().isHidden(menu.containerId())) {
+            connection.send(new ServerboundContainerClosePacket(menu.containerId()));
+        } else if (player.containerMenu.containerId == menu.containerId()) {
             player.closeContainer();
+        }
+    }
+
+    /** Puts the hotbar back on the slot the player had, unless they picked another one meanwhile. */
+    private void restoreSelectedSlot() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null && previousSlot >= 0 && player.getInventory().getSelectedSlot() == hotbarSlot) {
+            player.getInventory().setSelectedSlot(previousSlot);
         }
     }
 
@@ -442,6 +501,19 @@ final class VoteRun {
         step = next;
         stepTicks = 0;
         stepStartedAt = System.currentTimeMillis();
+    }
+
+    /** Stretches the timeout when the server answers slower than the minimum allows for. */
+    private void noteResponse() {
+        long took = elapsed();
+        if (took <= slowestStepMs) return;
+
+        slowestStepMs = took;
+        int ticks = (int) Math.ceil(took * TIMEOUT_SLOWEST_STEPS / 50.0);
+        if (ticks > stepTimeoutTicks) {
+            stepTimeoutTicks = ticks;
+            AutoVoteManager.log("run: a step took {}ms, step timeout now {}ms", took, ticks * 50);
+        }
     }
 
     private long elapsed() {

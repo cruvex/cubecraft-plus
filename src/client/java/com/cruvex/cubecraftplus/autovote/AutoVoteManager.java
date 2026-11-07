@@ -12,6 +12,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -140,8 +142,8 @@ public class AutoVoteManager {
         if (!autoPending) return;
         if (System.currentTimeMillis() - connectedAt < CONNECT_SETTLE_MS) return;
 
-        // A visible run would replace whatever the player has open
-        if (client.gui.screen() != null) {
+        // A visible run would replace whatever the player has open; a silent one only a menu, which the server holds
+        if (blockedByScreen(client, ConfigManager.getInstance().getConfig().autoVote.silent)) {
             if (!waitingLogged) {
                 waitingLogged = true;
                 log("waiting for the open screen to close before voting");
@@ -180,20 +182,21 @@ public class AutoVoteManager {
     }
 
     private static void showToast(VoteRun.Result result, List<GameVotes.VotePair> failed, List<String> closed) {
+        boolean allIn = result.landed() == result.total();
         MutableComponent message = Component.translatable("cubecraftplus.autovote.toast.voted",
                 result.landed(), result.total());
         if (!closed.isEmpty()) {
             message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.closed",
                     String.join(", ", closed)));
         }
-        if (result.stoppedByPlayer()) {
+        // Closing the menu after the last vote landed stopped nothing
+        if (result.stoppedByPlayer() && !allIn) {
             message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.stopped"));
         } else if (!failed.isEmpty()) {
             message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.failed",
                     String.join(", ", failed.stream().map(GameVotes.VotePair::submenuTitle).toList())));
         }
 
-        boolean allIn = result.landed() == result.total();
         ModToast.show(allIn ? ModToast.Icon.CUBEPANION_HAPPY : ModToast.Icon.CUBEPANION_SAD, TOAST_TITLE, message);
     }
 
@@ -226,8 +229,18 @@ public class AutoVoteManager {
         if (roundConfiguration == null) return;
 
         runIsAutomatic = automatic;
-        run = new VoteRun(votes, roundConfiguration.hotbarSlot());
+        run = new VoteRun(votes, roundConfiguration.hotbarSlot(), ConfigManager.getInstance().getConfig().autoVote.silent);
         run.start();
+    }
+
+    /** Whether a menu the server opens now belongs to a silent run, and gets no screen. */
+    public boolean hidesMenus() {
+        return run != null && run.hidesMenus();
+    }
+
+    private static boolean blockedByScreen(Minecraft client, boolean silent) {
+        Screen screen = client.gui.screen();
+        return silent ? screen instanceof AbstractContainerScreen<?> : screen != null;
     }
 
     private void endRound(String reason) {

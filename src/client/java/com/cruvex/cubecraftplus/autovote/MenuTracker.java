@@ -23,6 +23,8 @@ public final class MenuTracker {
     private String title = "";
     private int stateId;
     private List<ItemStack> items = List.of();
+    // Taken over by silent voting: no screen was built for it
+    private boolean hidden;
     // Every open counts, so a caller can tell the menu it acted on from the one that answered
     private int opens;
     private int clientCloses;
@@ -38,12 +40,17 @@ public final class MenuTracker {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> forget());
     }
 
-    public void opened(int containerId, String title) {
+    public void opened(int containerId, String title, boolean hidden) {
         this.containerId = containerId;
         this.title = title;
         this.stateId = 0;
         this.items = List.of();
+        this.hidden = hidden;
         this.opens++;
+    }
+
+    public boolean isHidden(int containerId) {
+        return hidden && containerId == this.containerId;
     }
 
     public void setContents(int containerId, int stateId, List<ItemStack> items) {
@@ -69,10 +76,13 @@ public final class MenuTracker {
         }
     }
 
-    /** We closed it ourselves, through Esc or a close packet of our own. */
+    /**
+     * We closed it ourselves, through Esc or a close packet of our own. Only closes of this menu count: closing
+     * the player's own inventory sends one for menu 0.
+     */
     public void closedByClient(int containerId) {
-        clientCloses++;
         if (containerId == this.containerId) {
+            clientCloses++;
             forget();
         }
     }
@@ -81,7 +91,7 @@ public final class MenuTracker {
         return opens;
     }
 
-    /** Closes sent from this client, for any menu: how a run notices the player pressing Esc. */
+    /** Closes of the tracked menu sent from this client: how a run notices the player pressing Esc. */
     public int clientCloses() {
         return clientCloses;
     }
@@ -96,5 +106,6 @@ public final class MenuTracker {
         title = "";
         stateId = 0;
         items = List.of();
+        hidden = false;
     }
 }
