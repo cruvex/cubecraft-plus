@@ -56,8 +56,6 @@ public class MenuProbe {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(this::reset));
     }
 
-    // Inbound
-
     public void onOpenScreen(ClientboundOpenScreenPacket packet) {
         if (!active()) return;
 
@@ -111,8 +109,6 @@ public class MenuProbe {
         closed(packet.getContainerId());
     }
 
-    // Outbound
-
     public void onSend(Packet<?> packet) {
         switch (packet) {
             case ServerboundContainerClickPacket click -> signal("OUT_CLICK",
@@ -133,8 +129,6 @@ public class MenuProbe {
         }
     }
 
-    // Client state, read each tick
-
     private void onEndTick(Minecraft client) {
         LocalPlayer player = client.player;
         if (player == null || !active()) return;
@@ -152,7 +146,7 @@ public class MenuProbe {
         signal("SCREEN", "{}", described);
     }
 
-    /** Names rather than full stacks: this is for spotting the voting item, not for every count change. */
+    /** Counts are left out, so stack size changes do not log a line each. */
     private void trackHotbar(LocalPlayer player) {
         List<String> names = new ArrayList<>();
         for (int slot = 0; slot < HOTBAR_SIZE; slot++) {
@@ -168,8 +162,6 @@ public class MenuProbe {
         hotbar = described;
         signal("HOTBAR", "{}", described);
     }
-
-    // Plumbing
 
     private void closed(int containerId) {
         if (containerId == menuId) {
@@ -195,7 +187,7 @@ public class MenuProbe {
         }
     }
 
-    /** Every slot that differs from before, so an empty before lists the whole menu. */
+    /** An empty before lists the whole menu. */
     private static String changes(List<String> before, List<String> after) {
         List<String> changed = new ArrayList<>();
         for (int slot = 0; slot < after.size(); slot++) {
@@ -207,7 +199,7 @@ public class MenuProbe {
         return String.join("; ", changed);
     }
 
-    /** Everything that could identify an item, since that is what the rebuild has to pick between. */
+    /** Everything that could identify an item. */
     private static String describe(ItemStack stack) {
         if (stack.isEmpty()) return EMPTY;
 

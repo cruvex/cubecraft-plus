@@ -7,16 +7,10 @@ import net.minecraft.network.HashedStack;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.world.inventory.ContainerInput;
 
-/**
- * The click packet silent voting sends instead of going through a screen. Rehearsed against vanilla's own clicks
- * before it was used: 50 of 50 matched, component hashes included.
- */
+/** The click silent voting sends; it matched vanilla's own clicks field for field, hashes included. */
 final class SilentClick {
 
-    /**
-     * A left click the way vanilla sends one on these menus: the clicked slot predicted empty and its stack on the
-     * cursor. The server cancels the pickup and resends the slot, so nothing here is applied locally.
-     */
+    /** The pickup vanilla sends; the server cancels it and resends the slot, so nothing is applied locally. */
     static ServerboundContainerClickPacket build(VoteMenuView menu, int slot, ClientPacketListener connection) {
         Int2ObjectMap<HashedStack> changedSlots = new Int2ObjectOpenHashMap<>();
         changedSlots.put(slot, HashedStack.EMPTY);

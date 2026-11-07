@@ -30,19 +30,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-/**
- * Votes once per round, as soon as the voting item has settled in the hotbar and no screen is in the way. Failed
- * votes get one more run a little later, and the outcome shows as a toast.
- */
+/** Votes once per round as soon as the voting item settles in the hotbar, retries what failed once, and shows a toast. */
 public class AutoVoteManager {
 
     private static final String VOTING_ITEM_NAME = "Voting";
-    /** How long the item has to stay, and then stay gone: a join can drop it for a tick. */
+    // A join can drop the item for a tick
     private static final int SETTLE_TICKS = 10;
     private static final int RETRY_DELAY_TICKS = 40;
-    /** An item use 0.5s after connecting was ignored in 4 of 25 lobbies, while the server was still setting up. */
+    // Item uses right after connecting were sometimes ignored while the server set the lobby up
     private static final long CONNECT_SETTLE_MS = 1000;
-    /** How long after a silent run stops early a late menu is still hidden, so it never pops up on screen. */
     private static final long LATE_MENU_MS = 3000;
     private static final Component TOAST_TITLE = Component.translatable("cubecraftplus.autovote.title");
 
@@ -57,10 +53,9 @@ public class AutoVoteManager {
 
     private @Nullable VoteRun run;
     private boolean runIsAutomatic;
-    // Set when a round starts with autovote on, until the run can start
     private boolean autoPending;
     private boolean waitingLogged;
-    // The round's first automatic run, kept so the toast can cover a retry too
+    // Kept so the toast after a retry covers both runs
     private @Nullable VoteRun.Result firstResult;
     private List<GameVotes.VotePair> retryVotes = List.of();
     private int retryInTicks;
@@ -105,7 +100,7 @@ public class AutoVoteManager {
             closeStrayMenu(client);
         }
 
-        // Team games swap Team Selection for the voting item late, so this watches the slot rather than the join
+        // Team games hand out the voting item late, so this watches the slot rather than the join
         AutoVoteConfiguration configuration =
                 AutoVoteConfigs.getInstance().find(GameManager.getInstance().getCurrentGame());
         boolean present = configuration != null
@@ -140,7 +135,6 @@ public class AutoVoteManager {
                 describeVotes(configuration, config));
     }
 
-    /** Starts the round's run once nothing is in the way, and its retry once the delay is up. */
     private void tickAutomatic(Minecraft client) {
         if (!roundActive || run != null || roundConfiguration == null) return;
 
@@ -154,7 +148,6 @@ public class AutoVoteManager {
         if (!autoPending) return;
         if (System.currentTimeMillis() - connectedAt < CONNECT_SETTLE_MS) return;
 
-        // A visible run would replace whatever the player has open; a silent one only a menu, which the server holds
         if (blockedByScreen(client, ConfigManager.getInstance().getConfig().autoVote.silent)) {
             if (!waitingLogged) {
                 waitingLogged = true;
@@ -181,38 +174,36 @@ public class AutoVoteManager {
                 retryInTicks = RETRY_DELAY_TICKS;
                 return;
             }
-            showToast(result, result.retryable(), result.closed());
+            showToast(result);
             return;
         }
 
-        // The retry only covered what the first run left, so the toast adds the two up
         Set<String> closed = new LinkedHashSet<>(firstResult.closed());
         closed.addAll(result.closed());
-        VoteRun.Result combined = new VoteRun.Result(firstResult.total(), firstResult.landed() + result.landed(),
-                List.copyOf(closed), result.retryable(), result.stoppedByPlayer());
-        showToast(combined, combined.retryable(), combined.closed());
+        showToast(new VoteRun.Result(firstResult.total(), firstResult.landed() + result.landed(),
+                List.copyOf(closed), result.retryable(), result.stoppedByPlayer()));
     }
 
-    private static void showToast(VoteRun.Result result, List<GameVotes.VotePair> failed, List<String> closed) {
+    private static void showToast(VoteRun.Result result) {
         boolean allIn = result.landed() == result.total();
         MutableComponent message = Component.translatable("cubecraftplus.autovote.toast.voted",
                 result.landed(), result.total());
-        if (!closed.isEmpty()) {
+        if (!result.closed().isEmpty()) {
             message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.closed",
-                    String.join(", ", closed)));
+                    String.join(", ", result.closed())));
         }
         // Closing the menu after the last vote landed stopped nothing
         if (result.stoppedByPlayer() && !allIn) {
             message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.stopped"));
-        } else if (!failed.isEmpty()) {
+        } else if (!result.retryable().isEmpty()) {
             message.append(". ").append(Component.translatable("cubecraftplus.autovote.toast.failed",
-                    String.join(", ", failed.stream().map(GameVotes.VotePair::submenuTitle).toList())));
+                    String.join(", ", result.retryable().stream().map(GameVotes.VotePair::submenuTitle).toList())));
         }
 
         ModToast.show(allIn ? ModToast.Icon.CUBEPANION_HAPPY : ModToast.Icon.CUBEPANION_SAD, TOAST_TITLE, message);
     }
 
-    /** Casts every configured vote now, for testing the flow by hand. Returns what happened, for the command. */
+    /** Casts every configured vote now, for testing by hand; returns what happened, for the command. */
     public String runOnce() {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -245,12 +236,12 @@ public class AutoVoteManager {
         run.start();
     }
 
-    /** Whether a menu the server opens now belongs to a silent run, and gets no screen. */
+    /** Whether a menu the server opens now gets no screen. */
     public boolean hidesMenus() {
         return run != null ? run.hidesMenus() : System.currentTimeMillis() < hideLateMenusUntil;
     }
 
-    /** A hidden menu with no run to use it can only be a late answer; the server would keep it open otherwise. */
+    /** A hidden menu with no run to use it is a late answer, which the server would otherwise keep open. */
     private static void closeStrayMenu(Minecraft client) {
         ClientPacketListener connection = client.getConnection();
         VoteMenuView menu = MenuTracker.getInstance().view();
@@ -260,10 +251,7 @@ public class AutoVoteManager {
         connection.send(new ServerboundContainerClosePacket(menu.containerId()));
     }
 
-    /**
-     * The pause menu never holds a run up: Minecraft opens it by itself when the window loses focus, and opens it
-     * again once our menus close, so a player who tabbed out still gets their votes.
-     */
+    /** The pause menu never blocks: it opens by itself when the player tabs out. */
     private static boolean blockedByScreen(Minecraft client, boolean silent) {
         Screen screen = client.gui.screen();
         if (screen instanceof PauseScreen) return false;
@@ -277,7 +265,7 @@ public class AutoVoteManager {
         }
         // A retry the round ended before still owes the player the first run's outcome
         if (retryInTicks > 0 && firstResult != null) {
-            showToast(firstResult, firstResult.retryable(), firstResult.closed());
+            showToast(firstResult);
         }
         if (roundActive) {
             log("round over ({}) after {}s", reason,

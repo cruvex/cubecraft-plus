@@ -7,14 +7,11 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The menu the server has open for us, read from the container packets whether or not a screen shows it,
- * so visible and silent voting see the same thing. Fed on the client thread by MenuTrackerMixin.
- */
+/** The menu the server has open for us, read from the packets whether or not a screen shows it. */
 public final class MenuTracker {
 
     private static final int CLOSED = -1;
-    /** The player's own inventory: a close for it is how the server closes everything. */
+    // A close for the player's inventory is how the server closes everything
     private static final int INVENTORY_MENU = 0;
 
     private static MenuTracker instance;
@@ -23,9 +20,7 @@ public final class MenuTracker {
     private String title = "";
     private int stateId;
     private List<ItemStack> items = List.of();
-    // Taken over by silent voting: no screen was built for it
     private boolean hidden;
-    // Every open counts, so a caller can tell the menu it acted on from the one that answered
     private int opens;
     private int clientCloses;
 
@@ -64,7 +59,7 @@ public final class MenuTracker {
         if (containerId != this.containerId || slot < 0 || slot >= items.size()) return;
 
         this.stateId = stateId;
-        // items can be the packet's own list, so copy before writing into it
+        // items can be the packet's own list
         List<ItemStack> copy = new ArrayList<>(items);
         copy.set(slot, item);
         this.items = copy;
@@ -76,10 +71,7 @@ public final class MenuTracker {
         }
     }
 
-    /**
-     * We closed it ourselves, through Esc or a close packet of our own. Only closes of this menu count: closing
-     * the player's own inventory sends one for menu 0.
-     */
+    /** Only closes of this menu count: closing the player's inventory sends one for menu 0. */
     public void closedByClient(int containerId) {
         if (containerId == this.containerId) {
             clientCloses++;
@@ -91,12 +83,10 @@ public final class MenuTracker {
         return opens;
     }
 
-    /** Closes of the tracked menu sent from this client: how a run notices the player pressing Esc. */
     public int clientCloses() {
         return clientCloses;
     }
 
-    /** The open menu as it stands now, or null when there is none. */
     public @Nullable VoteMenuView view() {
         return containerId == CLOSED ? null : new VoteMenuView(containerId, opens, stateId, title, items);
     }

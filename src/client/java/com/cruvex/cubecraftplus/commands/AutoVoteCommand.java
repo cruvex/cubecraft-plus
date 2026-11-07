@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
-/** {@code /ccp autovote run}, which casts one vote by hand while the autovote rebuild is tested. */
+/** {@code /ccp autovote run}, which casts every configured vote by hand. */
 public final class AutoVoteCommand {
 
     public static LiteralArgumentBuilder<FabricClientCommandSource> node() {

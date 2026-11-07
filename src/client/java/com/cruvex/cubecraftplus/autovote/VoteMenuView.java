@@ -10,36 +10,24 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
-/**
- * A snapshot of one menu, with the markers CubeCraft's voting menus carry. See
- * docs/autovote-server-behaviour.md for where each one comes from.
- */
+/** A snapshot of one menu and the markers CubeCraft's voting menus carry (docs/autovote-server-behaviour.md). */
 public record VoteMenuView(int containerId, int openCount, int stateId, String title, List<ItemStack> items) {
 
-    /** Close on a top-level menu, Back on a submenu. */
+    // Close on a top-level menu, Back on a submenu
     public static final int NAV_SLOT = 31;
 
     private static final String VARIANT_KEY = "cubetap:item_variant";
     private static final String MAIN_MENU_TITLE = "voting";
     private static final Pattern VOTE_COUNT = Pattern.compile("\\d+ votes?");
 
-    /**
-     * The list of categories, which the voting item opens in games that have more than one. Matched on the whole
-     * title, since submenus such as "Perk Voting" contain the word too, and with either button in slot 31: using
-     * the item while a submenu is still open gives a list with Back instead of Close.
-     */
+    /** The whole title, as submenus like "Perk Voting" contain the word too; either button, as a nested list has Back. */
     public boolean isCategoryList() {
         return (isTopLevel() || isSubmenu()) && plainTitle().equalsIgnoreCase(MAIN_MENU_TITLE);
     }
 
-    /** The menu holding one category's options: a submenu, or the top level in games without categories. */
+    /** A submenu, or the top level in games without a category list. */
     public boolean isVoteMenu(String menuTitle, boolean hasCategoryList) {
         return (hasCategoryList ? isSubmenu() : isTopLevel()) && titleContains(menuTitle);
-    }
-
-    /** Also false for the Loading placeholder, which has no slot 31 at all. */
-    public boolean isTopLevel() {
-        return "close".equals(variant(NAV_SLOT));
     }
 
     public boolean isSubmenu() {
@@ -50,7 +38,7 @@ public record VoteMenuView(int containerId, int openCount, int stateId, String t
         return !item(slot).isEmpty();
     }
 
-    /** Options end their lore with the running total, e.g. "3 votes"; fillers and buttons do not. */
+    /** Options end their lore with the running total, e.g. "3 votes". */
     public boolean isVoteOption(int slot) {
         ItemLore lore = item(slot).get(DataComponents.LORE);
         if (lore == null || lore.lines().isEmpty()) return false;
@@ -59,7 +47,7 @@ public record VoteMenuView(int containerId, int openCount, int stateId, String t
         return VOTE_COUNT.matcher(lines.get(lines.size() - 1).getString().trim()).matches();
     }
 
-    /** Foil marks the option we voted for, and only that one. */
+    /** Foil marks our own vote, and only that. */
     public boolean hasFoil(int slot) {
         return item(slot).hasFoil();
     }
@@ -68,11 +56,16 @@ public record VoteMenuView(int containerId, int openCount, int stateId, String t
         return item(slot).getHoverName().getString();
     }
 
+    // The Loading placeholder has no slot 31, so it is neither
+    private boolean isTopLevel() {
+        return "close".equals(variant(NAV_SLOT));
+    }
+
     private boolean titleContains(String text) {
         return title.toLowerCase(Locale.ROOT).contains(text.toLowerCase(Locale.ROOT));
     }
 
-    /** The title without the custom-font glyphs CubeCraft draws the menu background with. */
+    /** Without the custom-font glyphs CubeCraft draws the menu background with. */
     private String plainTitle() {
         StringBuilder plain = new StringBuilder();
         title.codePoints()

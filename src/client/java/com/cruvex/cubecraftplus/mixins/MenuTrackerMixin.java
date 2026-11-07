@@ -13,17 +13,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Feeds {@link MenuTracker} the inbound menu packets, and hides the menus a silent vote opens. Every inject sits
- * past PacketUtils.ensureRunningOnSameThread, so each runs once, on the client thread.
- */
+/** Feeds {@link MenuTracker} and hides silent votes' menus; every inject sits past the thread handoff, so runs once. */
 @Mixin(ClientPacketListener.class)
 public class MenuTrackerMixin {
 
-    /**
-     * Takes the menu over instead of building a screen for it, so player.containerMenu stays the player's own
-     * inventory. The TAIL inject below never runs for it, so the tracker and probe are fed here.
-     */
+    /** Builds no screen, so player.containerMenu stays the inventory; TAIL never runs, so this feeds tracker and probe. */
     @Inject(
             method = "handleOpenScreen",
             at = @At(value = "INVOKE",
@@ -56,7 +50,7 @@ public class MenuTrackerMixin {
                 packet.getContainerId(), packet.getStateId(), packet.getSlot(), packet.getItem());
     }
 
-    /** Vanilla closes whatever screen is open on any close, which would shut the player's chat for our hidden menu. */
+    /** Vanilla closes whatever screen is open, which would shut the player's chat for our hidden menu. */
     @Inject(
             method = "handleContainerClose",
             at = @At(value = "INVOKE",

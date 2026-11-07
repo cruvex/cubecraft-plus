@@ -14,24 +14,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * One pass through the voting menus, casting every configured vote, that only moves on when the server has
- * answered. Visible runs click through the screens; silent ones take the menus over and send their own packets.
- */
+/** Casts every configured vote in one pass through the voting menus, moving on only when the server has answered. */
 final class VoteRun {
 
-    /**
-     * The slowest answer on EU servers was 378ms and on Asia 500ms, while team games leave about 10 seconds for
-     * every vote; a high ping stretches it to four round trips.
-     */
     private static final int MIN_STEP_TIMEOUT_TICKS = 20;
     private static final int TIMEOUT_ROUND_TRIPS = 4;
-    /**
-     * The tab list ping is still 0 a second after joining, so the run also learns from its own steps: one took
-     * 799ms on a private server, against the usual 50-150ms.
-     */
+    // The tab list ping is still 0 right after joining, so the timeout also grows with the slowest step seen
     private static final int TIMEOUT_SLOWEST_STEPS = 3;
-    /** How long a vote confirmed by chat waits for the menu's own resync before moving on. */
     private static final int RESYNC_TICKS = 10;
 
     private enum Step {
@@ -47,12 +36,10 @@ final class VoteRun {
         }
     }
 
-    /** The server drops a vote with this line when one category gets several votes in a few seconds. */
     private static final String RATE_LIMITED = "You are voting too fast! Please slow down.";
     private static final int RATE_LIMIT_RETRIES = 2;
     private static final int RATE_LIMIT_BACKOFF_TICKS = 20;
     private static final String VOTED_FOR = " voted for ";
-    /** Categories close at different times: SkyWars settles projectiles at "starting in 5 seconds". */
     private static final String CATEGORY_CLOSED = "The votes for this category have been closed.";
 
     private final List<GameVotes.VotePair> votes;
@@ -60,7 +47,6 @@ final class VoteRun {
     private final boolean silent;
     private final List<String> failures = new ArrayList<>();
     private final List<String> closed = new ArrayList<>();
-    // Failed votes and the ones a stop left untried, which a later run can try again
     private final List<GameVotes.VotePair> retryable = new ArrayList<>();
     private int voted;
     private int alreadyVoted;
@@ -68,7 +54,6 @@ final class VoteRun {
     private boolean stopped;
     private int index;
     private long startedAt;
-    // Closes the player had sent before the run, so their Esc stops it
     private int closesBefore;
     private int previousSlot = -1;
 
@@ -77,20 +62,18 @@ final class VoteRun {
     private Step step = Step.FINISHED;
     private int stepTicks;
     private long stepStartedAt;
-    // Counted already through chat, waiting for the menu to catch up so the next click is not on stale state
+    // Confirmed by chat, waiting for the menu's resync so the next click is not on stale state
     private boolean awaitingResync;
     private int resyncTicks;
-    // Opens the tracker had seen when we acted, so only a menu that opened after counts as the answer
+    // Only a menu that opened after we acted counts as the answer
     private int opensBefore;
-    // Each vote gets one retry after a timeout, on top of the rate limit retries
     private boolean retried;
     private int voteContainerId;
     private String optionName = "";
     private int rateLimitRetriesLeft;
-    // Ticks until the vote is clicked again after a rate limit, 0 while no retry is pending
     private int retryInTicks;
 
-    /** How a finished run went, for the toast and for retrying what did not land. */
+    /** A vote that was already there counts as landed. */
     record Result(int total, int landed, List<String> closed, List<GameVotes.VotePair> retryable,
                   boolean stoppedByPlayer) {
     }
@@ -101,7 +84,6 @@ final class VoteRun {
         this.silent = silent;
     }
 
-    /** Whether menus opened during this run should be taken over instead of shown. */
     boolean hidesMenus() {
         return silent && step != Step.FINISHED;
     }
@@ -111,7 +93,6 @@ final class VoteRun {
         return silent && stopped;
     }
 
-    /** Counts a vote that was already there as landed: either way it is in. */
     Result result() {
         return new Result(votes.size(), voted + alreadyVoted, List.copyOf(closed), List.copyOf(retryable),
                 stoppedByPlayer);
@@ -135,7 +116,7 @@ final class VoteRun {
         if (step == Step.FINISHED) return false;
         if (!stoppedByPlayer && MenuTracker.getInstance().clientCloses() > closesBefore) {
             stoppedByPlayer = true;
-            // A vote already clicked can still land, and its chat line still comes, so wait for that one
+            // A vote already clicked can still land, so wait for its chat line
             if (step != Step.CONFIRM_VOTE) {
                 stop("the menu was closed by the player");
                 return false;
@@ -158,9 +139,7 @@ final class VoteRun {
         return step != Step.FINISHED;
     }
 
-    /** Server chat, which confirms a vote even when the menu closed before its foil arrived. */
     void onChat(String text) {
-        // Answers a click on the category, or on an option in it
         if (text.equals(CATEGORY_CLOSED) && (step == Step.OPEN_VOTE_MENU || step == Step.CONFIRM_VOTE)) {
             closed.add(current().submenuTitle());
             AutoVoteManager.log("run: '{}' is closed for voting, skipping it", current().submenuTitle());
@@ -176,21 +155,18 @@ final class VoteRun {
             }
             AutoVoteManager.log("run: server says we vote too fast, clicking again in {} ticks", RATE_LIMIT_BACKOFF_TICKS);
             retryInTicks = RATE_LIMIT_BACKOFF_TICKS;
-            // The wait for the retry does not count against the step's timeout
+            // The backoff does not count against the step's timeout
             stepTicks = -RATE_LIMIT_BACKOFF_TICKS;
         } else if (isOwnVote(text)) {
             voteLanded("chat");
         }
     }
 
-    /** Ends the run early, for when the round it belonged to is over. */
     void abandon(String reason) {
         if (step != Step.FINISHED) {
             stop("abandoned while waiting to " + step.waitingTo + " (" + reason + ")");
         }
     }
-
-    // Steps
 
     private void tickCategoryList(@Nullable VoteMenuView menu) {
         GameVotes.VotePair vote = current();
@@ -230,7 +206,7 @@ final class VoteRun {
         }
     }
 
-    /** Waits for foil on the option, or for the chat line through onChat, whichever comes first. */
+    /** Waits for foil on the option; the chat line arrives through onChat. */
     private void tickConfirm(@Nullable VoteMenuView menu) {
         boolean menuOpen = menu != null && menu.containerId() == voteContainerId;
         if (awaitingResync) {
@@ -255,7 +231,7 @@ final class VoteRun {
         }
     }
 
-    /** Tries the step's action once more, the first time a vote times out, and gives up the second time. */
+    /** Retries the step once per vote, and gives up the second time. */
     private void onTimeout() {
         String waited = "timed out after " + elapsed() + "ms waiting to " + step.waitingTo;
         if (stoppedByPlayer) {
@@ -299,8 +275,6 @@ final class VoteRun {
         }
     }
 
-    // Moving between votes
-
     private void voteLanded(String confirmedBy) {
         voted++;
         // A rate limit retry waits on purpose, which says nothing about the server's speed
@@ -310,7 +284,6 @@ final class VoteRun {
         AutoVoteManager.log("run: voted for '{}' in '{}', confirmed by {} after {}ms",
                 optionName, current().submenuTitle(), confirmedBy, elapsed());
 
-        // Chat can beat the menu's resync; clicking Back before it lands sends a click on stale state
         VoteMenuView menu = MenuTracker.getInstance().view();
         if (menu != null && menu.containerId() == voteContainerId && !menu.hasFoil(current().voteSlot())) {
             awaitingResync = true;
@@ -328,10 +301,6 @@ final class VoteRun {
         nextVote();
     }
 
-    /**
-     * Clicks the next category straight away when the category list is still open, goes Back from a submenu, and
-     * reopens voting with the item when neither is on screen.
-     */
     private void nextVote() {
         index++;
         if (index >= votes.size()) {
@@ -372,7 +341,6 @@ final class VoteRun {
         optionName = "";
     }
 
-    /** Uses the voting item, the way a right click in the air does, closing whatever menu is open first. */
     private void openVoting() {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -381,7 +349,7 @@ final class VoteRun {
             return;
         }
 
-        // An item use on top of an open submenu nests the new list under it, so leave it the way a player would
+        // Using the item on top of an open submenu nests the new list under it
         closeMenu();
         closesBefore = MenuTracker.getInstance().clientCloses();
 
@@ -399,7 +367,7 @@ final class VoteRun {
         AutoVoteManager.log("run: finished, {}", summary());
     }
 
-    /** Ends the run without trying the votes that are left, the current one included. */
+    /** Ends the run, leaving the current vote and the ones after it for a retry. */
     private void stop(String reason) {
         if (step != Step.FINISHED) {
             retryable.addAll(votes.subList(Math.min(index, votes.size()), votes.size()));
@@ -421,9 +389,7 @@ final class VoteRun {
         return failures.isEmpty() ? result : result + "; failed: " + String.join(", ", failures);
     }
 
-    // Plumbing
-
-    /** "<name> voted for <option> <category>. N votes", where the name can carry rank decoration on both sides. */
+    /** "<name> voted for <option> <category>. N votes", with possible rank decoration around the name. */
     private boolean isOwnVote(String text) {
         LocalPlayer player = Minecraft.getInstance().player;
         int at = text.indexOf(VOTED_FOR);
@@ -432,12 +398,11 @@ final class VoteRun {
         return Arrays.asList(text.substring(0, at).split("[^A-Za-z0-9_]+")).contains(player.getGameProfile().name());
     }
 
-    /** A menu that opened after we acted, as opposed to the one we acted in. */
     private boolean isNew(@Nullable VoteMenuView menu) {
         return menu != null && menu.openCount() > opensBefore;
     }
 
-    /** Sends our own click for a hidden menu, and otherwise clicks through the screen the way the player would. */
+    /** Sends our own click for a hidden menu, and clicks through the screen otherwise. */
     private boolean click(VoteMenuView menu, int slot) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -460,10 +425,7 @@ final class VoteRun {
         return true;
     }
 
-    /**
-     * Closes the menu we left open: a hidden one with a close packet of our own, which leaves whatever the player
-     * has on screen alone, and a visible one through the screen.
-     */
+    /** A hidden menu gets our own close packet, so the player's screen is left alone. */
     private void closeMenu() {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -478,7 +440,7 @@ final class VoteRun {
         }
     }
 
-    /** Puts the hotbar back on the slot the player had, unless they picked another one meanwhile. */
+    /** Leaves the slot alone when the player picked another one meanwhile. */
     private void restoreSelectedSlot() {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player != null && previousSlot >= 0 && player.getInventory().getSelectedSlot() == hotbarSlot) {
@@ -486,7 +448,6 @@ final class VoteRun {
         }
     }
 
-    /** The ping the server reports for us in the tab list, or 0 before it has. */
     private static int ping() {
         Minecraft client = Minecraft.getInstance();
         ClientPacketListener connection = client.getConnection();
@@ -506,7 +467,6 @@ final class VoteRun {
         stepStartedAt = System.currentTimeMillis();
     }
 
-    /** Stretches the timeout when the server answers slower than the minimum allows for. */
     private void noteResponse() {
         long took = elapsed();
         if (took <= slowestStepMs) return;
