@@ -16,7 +16,7 @@ import java.util.Locale;
 
 /**
  * One pass through the voting menus, casting every configured vote, that only moves on when the server has
- * answered. For now the menus stay on screen.
+ * answered. Visible runs click through the screens; silent ones take the menus over and send their own packets.
  */
 final class VoteRun {
 
@@ -430,10 +430,7 @@ final class VoteRun {
         return menu != null && menu.openCount() > opensBefore;
     }
 
-    /**
-     * Sends our own click for a hidden menu, and otherwise clicks through the screen the way the player would,
-     * rehearsing the silent click alongside.
-     */
+    /** Sends our own click for a hidden menu, and otherwise clicks through the screen the way the player would. */
     private boolean click(VoteMenuView menu, int slot) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -452,7 +449,6 @@ final class VoteRun {
             return false;
         }
 
-        SilentClick.rehearse(SilentClick.build(menu, slot, connection));
         client.gameMode.handleContainerInput(menu.containerId(), slot, 0, ContainerInput.PICKUP, player);
         return true;
     }

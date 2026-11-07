@@ -17,14 +17,6 @@ public final class GameVotes {
         }
     }
 
-    public static final int RETURN_SLOT = 31;
-
-    /** Runs every tick while idle, so it stays a lookup and builds no vote list. */
-    public static int hotbarSlotFor(@Nullable Game game) {
-        AutoVoteConfiguration configuration = AutoVoteConfigs.getInstance().find(game);
-        return configuration == null ? -1 : configuration.hotbarSlot();
-    }
-
     public static List<VotePair> forGame(@Nullable Game game, ModConfig.AutoVoteConfig config) {
         AutoVoteConfiguration configuration = AutoVoteConfigs.getInstance().find(game);
         if (configuration == null) {
