@@ -1,7 +1,9 @@
 package com.cruvex.cubecraftplus.gui.widget;
 
 import com.cruvex.cubecraftplus.friends.Friend;
+import com.cruvex.cubecraftplus.friends.FriendMessages;
 import com.cruvex.cubecraftplus.friends.HeadResolver;
+import com.cruvex.cubecraftplus.gui.screen.FriendMessagesScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -47,9 +49,10 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
     // icon/invite is Realms' envelope
     private static final Icon MESSAGE_ICON = new Icon(Identifier.withDefaultNamespace("icon/invite"), 14, 14);
     private static final Icon PARTY_ICON = new Icon(Identifier.withDefaultNamespace("friends/friends"), 16, 16);
+    private static final Icon HISTORY_ICON = new Icon(Identifier.withDefaultNamespace("icon/news"), 14, 14);
     private static final Icon REMOVE_ICON = new Icon(Identifier.withDefaultNamespace("friends/remove"), 14, 13);
 
-    /** Where the remove confirmation returns to. */
+    /** Where the remove confirmation and the message history return to. */
     private final Screen screen;
 
     public FriendsList(Minecraft minecraft, Screen screen, int width, int height, int y) {
@@ -82,12 +85,15 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
 
         private Entry(Friend friend) {
             this.friend = friend;
+            SpriteIconButton history = button("cubecraftplus.friends.history", HISTORY_ICON, button -> openHistory());
+            history.active = friend.id() != null && FriendMessages.getInstance().hasHistory(friend.id());
             SpriteIconButton remove = button("cubecraftplus.friends.remove", REMOVE_ICON, button -> confirmRemove());
             this.buttons = friend.online()
                     ? List.of(button("cubecraftplus.friends.message", MESSAGE_ICON, button -> message()),
                             button("cubecraftplus.friends.invite", PARTY_ICON, this::invite),
+                            history,
                             remove)
-                    : List.of(remove);
+                    : List.of(history, remove);
         }
 
         private SpriteIconButton button(String key, Icon icon, Button.OnPress onPress) {
@@ -106,6 +112,10 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
             sendCommand("party invite " + friend.name());
             // Disabled after one invite: the reply is hidden behind the screen
             button.active = false;
+        }
+
+        private void openHistory() {
+            minecraft.gui.setScreen(new FriendMessagesScreen(screen, friend, friend.id()));
         }
 
         private void confirmRemove() {

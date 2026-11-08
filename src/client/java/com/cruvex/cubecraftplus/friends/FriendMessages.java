@@ -6,6 +6,7 @@ import com.cruvex.cubecraftplus.game.CubeCraftManager;
 import com.cruvex.cubecraftplus.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
@@ -14,8 +15,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -37,6 +41,9 @@ public class FriendMessages {
         thread.setDaemon(true);
         return thread;
     });
+
+    /** Each save waits for the one before it, so a slow uuid lookup can't reorder messages. */
+    private CompletableFuture<Void> lastSave = CompletableFuture.completedFuture(null);
 
     /** One line of a history file; {@code name} is the friend's name at the time. */
     public record Message(long time, boolean out, String name, String text) {
@@ -60,8 +67,54 @@ public class FriendMessages {
         UUID account = FriendsManager.account();
         if (message == null || account == null) return;
 
-        FriendsManager.getInstance().confirmOnline(message.name())
-                .whenComplete((id, error) -> writer.execute(() -> save(account, error == null ? id : null, message)));
+        CompletableFuture<UUID> lookup = FriendsManager.getInstance().confirmOnline(message.name()).exceptionally(error -> null);
+        lastSave = lastSave.exceptionally(error -> null).thenCombineAsync(lookup, (previous, id) -> {
+            save(account, id, message);
+            return null;
+        }, writer);
+    }
+
+    public boolean hasHistory(UUID friend) {
+        UUID account = FriendsManager.account();
+        return account != null && Files.exists(historyFile(account, friend));
+    }
+
+    /** Oldest first; on the writer thread, so it includes everything already queued to be saved. */
+    public CompletableFuture<List<Message>> load(UUID friend) {
+        UUID account = FriendsManager.account();
+        if (account == null) return CompletableFuture.completedFuture(List.of());
+
+        return CompletableFuture.supplyAsync(() -> read(historyFile(account, friend)), writer);
+    }
+
+    private static Path historyFile(UUID account, UUID friend) {
+        return ModPaths.messages(account).resolve(friend + ".jsonl");
+    }
+
+    private static List<Message> read(Path file) {
+        List<Message> messages = new ArrayList<>();
+        if (!Files.exists(file)) return messages;
+
+        try {
+            for (String line : Files.readAllLines(file)) {
+                Message message = parseLine(line);
+                if (message != null) {
+                    messages.add(message);
+                }
+            }
+        } catch (IOException e) {
+            CubeCraftPlusClient.LOGGER.warn("Failed to read messages from {}", file, e);
+        }
+        return messages;
+    }
+
+    /** Null for a line a crash cut short, so one bad line doesn't lose the rest. */
+    private static @Nullable Message parseLine(String line) {
+        try {
+            return GSON.fromJson(line, Message.class);
+        } catch (JsonParseException e) {
+            return null;
+        }
     }
 
     private static @Nullable Message parse(String text) {
@@ -84,7 +137,7 @@ public class FriendMessages {
                 return;
             }
 
-            Path friend = folder.resolve(id + ".jsonl");
+            Path friend = historyFile(account, id);
             // Older lines, saved while the uuid was unknown
             if (Files.exists(unresolved)) {
                 append(friend, Files.readString(unresolved));
