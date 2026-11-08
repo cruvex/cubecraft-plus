@@ -20,6 +20,7 @@ public class FriendMessagesScreen extends Screen {
     private final HeaderAndFooterLayout layout = new HeaderAndFooterLayout(this,
             HeaderAndFooterLayout.DEFAULT_HEADER_AND_FOOTER_HEIGHT, HeaderAndFooterLayout.DEFAULT_HEADER_AND_FOOTER_HEIGHT);
     private MessageHistoryList list;
+    private int loadedSaves;
 
     public FriendMessagesScreen(Screen parent, Friend friend, UUID friendId) {
         super(Component.translatable("cubecraftplus.friends.history.title", friend.name()));
@@ -35,6 +36,18 @@ public class FriendMessagesScreen extends Screen {
 
         layout.visitWidgets(this::addRenderableWidget);
         repositionElements();
+        reload();
+    }
+
+    @Override
+    public void tick() {
+        if (FriendMessages.getInstance().saveCount(friendId) != loadedSaves) {
+            reload();
+        }
+    }
+
+    private void reload() {
+        loadedSaves = FriendMessages.getInstance().saveCount(friendId);
         FriendMessages.getInstance().load(friendId).thenAcceptAsync(messages -> list.setMessages(messages), minecraft);
     }
 

@@ -18,8 +18,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -44,6 +46,7 @@ public class FriendMessages {
 
     /** Each save waits for the one before it, so a slow uuid lookup can't reorder messages. */
     private CompletableFuture<Void> lastSave = CompletableFuture.completedFuture(null);
+    private final Map<UUID, Integer> saves = new ConcurrentHashMap<>();
 
     /** One line of a history file; {@code name} is the friend's name at the time. */
     public record Message(long time, boolean out, String name, String text) {
@@ -70,8 +73,16 @@ public class FriendMessages {
         CompletableFuture<UUID> lookup = FriendsManager.getInstance().confirmOnline(message.name()).exceptionally(error -> null);
         lastSave = lastSave.exceptionally(error -> null).thenCombineAsync(lookup, (previous, id) -> {
             save(account, id, message);
+            if (id != null) {
+                saves.merge(id, 1, Integer::sum);
+            }
             return null;
         }, writer);
+    }
+
+    /** Changes whenever a message with this friend is saved, so an open history knows to reload. */
+    public int saveCount(UUID friend) {
+        return saves.getOrDefault(friend, 0);
     }
 
     public boolean hasHistory(UUID friend) {

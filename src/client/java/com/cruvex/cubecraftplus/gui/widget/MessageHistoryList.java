@@ -49,8 +49,10 @@ public class MessageHistoryList extends ContainerObjectSelectionList<MessageHist
         rewrap();
     }
 
-    /** Lays the messages out for the current width and shows the newest. */
+    /** Lays the messages out for the current width, following the newest unless the player has scrolled up. */
     public void rewrap() {
+        double scroll = scrollAmount();
+        boolean followNewest = scroll >= maxScrollAmount();
         int maxTextWidth = getRowWidth() * 7 / 10;
         clearEntries();
         LocalDate day = null;
@@ -63,7 +65,7 @@ public class MessageHistoryList extends ContainerObjectSelectionList<MessageHist
             BubbleRow bubble = new BubbleRow(message, TIME.format(at), maxTextWidth);
             addEntry(bubble, bubble.rowHeight());
         }
-        setScrollAmount(maxScrollAmount());
+        setScrollAmount(followNewest ? maxScrollAmount() : scroll);
     }
 
     @Override
