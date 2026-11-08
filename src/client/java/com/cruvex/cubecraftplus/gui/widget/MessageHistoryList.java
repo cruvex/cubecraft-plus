@@ -1,15 +1,21 @@
 package com.cruvex.cubecraftplus.gui.widget;
 
+import com.cruvex.cubecraftplus.friends.Friend;
 import com.cruvex.cubecraftplus.friends.FriendMessages.Message;
+import com.cruvex.cubecraftplus.friends.HeadResolver;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
+import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.CommonColors;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.world.entity.player.PlayerSkin;
+import net.minecraft.world.item.component.ResolvableProfile;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -32,16 +38,20 @@ public class MessageHistoryList extends ContainerObjectSelectionList<MessageHist
     private static final int DATE_ROW_HEIGHT = 18;
     private static final int BUBBLE_PADDING = 4;
     private static final int LINE_GAP = 1;
+    private static final int HEAD_SIZE = 16;
+    private static final int HEAD_GAP = 4;
     private static final int TIME_GAP = 4;
     private static final int OWN_BUBBLE = 0xCC2B5C8A;
     private static final int THEIR_BUBBLE = 0xCC3A3A3A;
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM);
 
+    private final Friend friend;
     private List<Message> messages = List.of();
 
-    public MessageHistoryList(Minecraft minecraft, int width, int height, int y) {
+    public MessageHistoryList(Minecraft minecraft, int width, int height, int y, Friend friend) {
         super(minecraft, width, height, y, DEFAULT_ROW_HEIGHT);
+        this.friend = friend;
     }
 
     public void setMessages(List<Message> messages) {
@@ -129,8 +139,10 @@ public class MessageHistoryList extends ContainerObjectSelectionList<MessageHist
         public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
             Font font = minecraft.font;
             int bubbleWidth = textWidth + BUBBLE_PADDING * 2;
-            int left = own ? getContentRight() - bubbleWidth : getContentX();
+            int headX = own ? getContentRight() - HEAD_SIZE : getContentX();
+            int left = own ? headX - HEAD_GAP - bubbleWidth : headX + HEAD_SIZE + HEAD_GAP;
             int top = getContentY();
+            extractHead(graphics, headX, top);
             int bottom = top + bubbleHeight();
             graphics.fill(left, top, left + bubbleWidth, bottom, own ? OWN_BUBBLE : THEIR_BUBBLE);
 
@@ -142,6 +154,17 @@ public class MessageHistoryList extends ContainerObjectSelectionList<MessageHist
 
             int timeX = own ? left - TIME_GAP - font.width(time) : left + bubbleWidth + TIME_GAP;
             graphics.text(font, time, timeX, bottom - BUBBLE_PADDING - font.lineHeight, CommonColors.GRAY);
+        }
+
+        private void extractHead(GuiGraphicsExtractor graphics, int x, int y) {
+            ResolvableProfile head = own ? null : HeadResolver.getInstance().headFor(friend);
+            if (head != null) {
+                PlayerFaceExtractor.extractRenderState(graphics, head, x, y, HEAD_SIZE);
+                return;
+            }
+
+            PlayerSkin skin = own && minecraft.player != null ? minecraft.player.getSkin() : DefaultPlayerSkin.getDefaultSkin();
+            PlayerFaceExtractor.extractRenderState(graphics, skin, x, y, HEAD_SIZE);
         }
     }
 }

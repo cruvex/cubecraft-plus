@@ -30,7 +30,7 @@ public class FriendMessagesScreen extends Screen {
     private static final int MAX_COMMAND_LENGTH = 255;
 
     private final Screen parent;
-    private final String friendName;
+    private final Friend friend;
     private final UUID friendId;
     private final HeaderAndFooterLayout layout =
             new HeaderAndFooterLayout(this, HeaderAndFooterLayout.DEFAULT_HEADER_AND_FOOTER_HEIGHT, FOOTER_HEIGHT);
@@ -41,18 +41,18 @@ public class FriendMessagesScreen extends Screen {
     public FriendMessagesScreen(Screen parent, Friend friend, UUID friendId) {
         super(Component.translatable("cubecraftplus.friends.history.title", friend.name()));
         this.parent = parent;
-        this.friendName = friend.name();
+        this.friend = friend;
         this.friendId = friendId;
     }
 
     @Override
     protected void init() {
         layout.addToHeader(new StringWidget(title, font));
-        list = layout.addToContents(new MessageHistoryList(minecraft, width, layout.getContentHeight(), layout.getHeaderHeight()));
+        list = layout.addToContents(new MessageHistoryList(minecraft, width, layout.getContentHeight(), layout.getHeaderHeight(), friend));
 
         LinearLayout footer = layout.addToFooter(LinearLayout.vertical().spacing(FOOTER_SPACING));
         reply = footer.addChild(new EditBox(font, list.getRowWidth(), REPLY_HEIGHT,
-                Component.translatable("cubecraftplus.friends.message", friendName)), LayoutSettings::alignHorizontallyCenter);
+                Component.translatable("cubecraftplus.friends.message", friend.name())), LayoutSettings::alignHorizontallyCenter);
         reply.setMaxLength(MAX_COMMAND_LENGTH - replyCommand("").length());
         footer.addChild(Button.builder(CommonComponents.GUI_DONE, button -> onClose()).build(), LayoutSettings::alignHorizontallyCenter);
 
@@ -84,7 +84,7 @@ public class FriendMessagesScreen extends Screen {
         boolean online = isFriendOnline();
         reply.setEditable(online);
         String hint = online ? "cubecraftplus.friends.message" : "cubecraftplus.friends.history.offline";
-        reply.setHint(Component.translatable(hint, friendName).withStyle(ChatFormatting.DARK_GRAY));
+        reply.setHint(Component.translatable(hint, friend.name()).withStyle(ChatFormatting.DARK_GRAY));
     }
 
     private boolean isFriendOnline() {
@@ -113,7 +113,7 @@ public class FriendMessagesScreen extends Screen {
     }
 
     private String replyCommand(String text) {
-        return "fmsg " + friendName + " " + text;
+        return "fmsg " + friend.name() + " " + text;
     }
 
     @Override
