@@ -49,7 +49,6 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
     // icon/invite is Realms' envelope
     private static final Icon MESSAGE_ICON = new Icon(Identifier.withDefaultNamespace("icon/invite"), 14, 14);
     private static final Icon PARTY_ICON = new Icon(Identifier.withDefaultNamespace("friends/friends"), 16, 16);
-    private static final Icon HISTORY_ICON = new Icon(Identifier.withDefaultNamespace("icon/news"), 14, 14);
     private static final Icon REMOVE_ICON = new Icon(Identifier.withDefaultNamespace("friends/remove"), 14, 13);
 
     /** Where the remove confirmation and the message history return to. */
@@ -85,15 +84,16 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
 
         private Entry(Friend friend) {
             this.friend = friend;
-            SpriteIconButton history = button("cubecraftplus.friends.history", HISTORY_ICON, button -> openHistory());
-            history.active = friend.id() != null && FriendMessages.getInstance().hasHistory(friend.id());
+            SpriteIconButton messages = button(
+                    friend.online() ? "cubecraftplus.friends.message" : "cubecraftplus.friends.history",
+                    MESSAGE_ICON, button -> openMessages());
+            // An offline friend can't be messaged, only read back
+            messages.active = friend.online()
+                    || friend.id() != null && FriendMessages.getInstance().hasHistory(friend.id());
             SpriteIconButton remove = button("cubecraftplus.friends.remove", REMOVE_ICON, button -> confirmRemove());
             this.buttons = friend.online()
-                    ? List.of(button("cubecraftplus.friends.message", MESSAGE_ICON, button -> message()),
-                            button("cubecraftplus.friends.invite", PARTY_ICON, this::invite),
-                            history,
-                            remove)
-                    : List.of(history, remove);
+                    ? List.of(messages, button("cubecraftplus.friends.invite", PARTY_ICON, this::invite), remove)
+                    : List.of(messages, remove);
         }
 
         private SpriteIconButton button(String key, Icon icon, Button.OnPress onPress) {
@@ -104,18 +104,19 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
                     .build();
         }
 
-        private void message() {
-            minecraft.gui.setScreen(new ChatScreen("/fmsg " + friend.name() + " ", false));
+        /** Without a uuid there is no history to show, so chat opens with the command typed in. */
+        private void openMessages() {
+            if (friend.id() == null) {
+                minecraft.gui.setScreen(new ChatScreen("/fmsg " + friend.name() + " ", false));
+                return;
+            }
+            minecraft.gui.setScreen(new FriendMessagesScreen(screen, friend, friend.id()));
         }
 
         private void invite(Button button) {
             sendCommand("party invite " + friend.name());
             // Disabled after one invite: the reply is hidden behind the screen
             button.active = false;
-        }
-
-        private void openHistory() {
-            minecraft.gui.setScreen(new FriendMessagesScreen(screen, friend, friend.id()));
         }
 
         private void confirmRemove() {
