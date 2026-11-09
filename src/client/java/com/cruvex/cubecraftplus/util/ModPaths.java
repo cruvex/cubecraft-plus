@@ -42,6 +42,11 @@ public final class ModPaths {
         return ROOT.resolve("players").resolve("ids.json");
     }
 
+    /** An account's friend messages, one file per friend. */
+    public static Path messages(UUID account) {
+        return ROOT.resolve("history").resolve("messages").resolve(account.toString());
+    }
+
     public static Path cache(String name) {
         return ROOT.resolve("cache").resolve(name + ".json");
     }

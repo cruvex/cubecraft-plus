@@ -1,7 +1,9 @@
 package com.cruvex.cubecraftplus.gui.widget;
 
 import com.cruvex.cubecraftplus.friends.Friend;
+import com.cruvex.cubecraftplus.friends.FriendMessages;
 import com.cruvex.cubecraftplus.friends.HeadResolver;
+import com.cruvex.cubecraftplus.gui.screen.FriendMessagesScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -49,7 +51,7 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
     private static final Icon PARTY_ICON = new Icon(Identifier.withDefaultNamespace("friends/friends"), 16, 16);
     private static final Icon REMOVE_ICON = new Icon(Identifier.withDefaultNamespace("friends/remove"), 14, 13);
 
-    /** Where the remove confirmation returns to. */
+    /** Where the remove confirmation and the message history return to. */
     private final Screen screen;
 
     public FriendsList(Minecraft minecraft, Screen screen, int width, int height, int y) {
@@ -82,12 +84,16 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
 
         private Entry(Friend friend) {
             this.friend = friend;
+            SpriteIconButton messages = button(
+                    friend.online() ? "cubecraftplus.friends.message" : "cubecraftplus.friends.history",
+                    MESSAGE_ICON, button -> openMessages());
+            // An offline friend can't be messaged, only read back
+            messages.active = friend.online()
+                    || friend.id() != null && FriendMessages.getInstance().hasHistory(friend.id());
             SpriteIconButton remove = button("cubecraftplus.friends.remove", REMOVE_ICON, button -> confirmRemove());
             this.buttons = friend.online()
-                    ? List.of(button("cubecraftplus.friends.message", MESSAGE_ICON, button -> message()),
-                            button("cubecraftplus.friends.invite", PARTY_ICON, this::invite),
-                            remove)
-                    : List.of(remove);
+                    ? List.of(messages, button("cubecraftplus.friends.invite", PARTY_ICON, this::invite), remove)
+                    : List.of(messages, remove);
         }
 
         private SpriteIconButton button(String key, Icon icon, Button.OnPress onPress) {
@@ -98,8 +104,13 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
                     .build();
         }
 
-        private void message() {
-            minecraft.gui.setScreen(new ChatScreen("/fmsg " + friend.name() + " ", false));
+        /** Without a uuid there is no history to show, so chat opens with the command typed in. */
+        private void openMessages() {
+            if (friend.id() == null) {
+                minecraft.gui.setScreen(new ChatScreen("/fmsg " + friend.name() + " ", false));
+                return;
+            }
+            minecraft.gui.setScreen(new FriendMessagesScreen(screen, friend, friend.id()));
         }
 
         private void invite(Button button) {
@@ -126,7 +137,7 @@ public class FriendsList extends ContainerObjectSelectionList<FriendsList.Entry>
             int x = getContentX();
             int middle = getContentYMiddle();
 
-            ResolvableProfile head = HeadResolver.getInstance().headFor(friend.name());
+            ResolvableProfile head = HeadResolver.getInstance().headFor(friend);
             int headY = middle - HEAD_SIZE / 2;
             if (head != null) {
                 PlayerFaceExtractor.extractRenderState(graphics, head, x, headY, HEAD_SIZE);
