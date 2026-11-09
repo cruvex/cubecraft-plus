@@ -23,6 +23,7 @@ import java.util.UUID;
 public class FriendMessagesScreen extends Screen {
 
     private static final int REPLY_HEIGHT = 20;
+    private static final int SEND_WIDTH = 50;
     private static final int FOOTER_SPACING = 4;
     private static final int FOOTER_HEIGHT =
             HeaderAndFooterLayout.DEFAULT_HEADER_AND_FOOTER_HEIGHT + REPLY_HEIGHT + FOOTER_SPACING;
@@ -36,6 +37,7 @@ public class FriendMessagesScreen extends Screen {
             new HeaderAndFooterLayout(this, HeaderAndFooterLayout.DEFAULT_HEADER_AND_FOOTER_HEIGHT, FOOTER_HEIGHT);
     private MessageHistoryList list;
     private EditBox reply;
+    private Button sendButton;
     private int loadedSaves;
 
     public FriendMessagesScreen(Screen parent, Friend friend, UUID friendId) {
@@ -51,9 +53,14 @@ public class FriendMessagesScreen extends Screen {
         list = layout.addToContents(new MessageHistoryList(minecraft, width, layout.getContentHeight(), layout.getHeaderHeight(), friend));
 
         LinearLayout footer = layout.addToFooter(LinearLayout.vertical().spacing(FOOTER_SPACING));
-        reply = footer.addChild(new EditBox(font, list.getRowWidth(), REPLY_HEIGHT,
-                Component.translatable("cubecraftplus.friends.message", friend.name())), LayoutSettings::alignHorizontallyCenter);
+        LinearLayout replyRow = footer.addChild(LinearLayout.horizontal().spacing(FOOTER_SPACING),
+                LayoutSettings::alignHorizontallyCenter);
+        reply = replyRow.addChild(new EditBox(font, replyWidth(), REPLY_HEIGHT,
+                Component.translatable("cubecraftplus.friends.message", friend.name())));
         reply.setMaxLength(MAX_COMMAND_LENGTH - replyCommand("").length());
+        sendButton = replyRow.addChild(Button.builder(Component.translatable("cubecraftplus.friends.history.send"), button -> send())
+                .size(SEND_WIDTH, REPLY_HEIGHT)
+                .build());
         footer.addChild(Button.builder(CommonComponents.GUI_DONE, button -> onClose()).build(), LayoutSettings::alignHorizontallyCenter);
 
         layout.visitWidgets(this::addRenderableWidget);
@@ -83,6 +90,7 @@ public class FriendMessagesScreen extends Screen {
     private void updateReply() {
         boolean online = isFriendOnline();
         reply.setEditable(online);
+        sendButton.active = online && !reply.getValue().isBlank();
         String hint = online ? "cubecraftplus.friends.message" : "cubecraftplus.friends.history.offline";
         reply.setHint(Component.translatable(hint, friend.name()).withStyle(ChatFormatting.DARK_GRAY));
     }
@@ -108,8 +116,15 @@ public class FriendMessagesScreen extends Screen {
 
         connection.sendCommand(replyCommand(text));
         reply.setValue("");
+        // Back from the Send button, so typing can carry on
+        setFocused(reply);
         // Shows the reply when it comes back, even after scrolling up
         list.setScrollAmount(list.maxScrollAmount());
+    }
+
+    /** The box and the Send button together are as wide as the messages. */
+    private int replyWidth() {
+        return list.getRowWidth() - SEND_WIDTH - FOOTER_SPACING;
     }
 
     private String replyCommand(String text) {
@@ -122,7 +137,7 @@ public class FriendMessagesScreen extends Screen {
         layout.arrangeElements();
         list.updateSize(width, layout);
         // Matches the bubbles' width, which depends on the list's new size
-        reply.setWidth(list.getRowWidth());
+        reply.setWidth(replyWidth());
         layout.arrangeElements();
         list.rewrap();
     }
