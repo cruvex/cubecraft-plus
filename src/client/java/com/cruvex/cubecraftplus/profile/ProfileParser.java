@@ -38,7 +38,9 @@ public final class ProfileParser {
 
     public static void onServerMessage(Component message) {
         for (PlayerObservation observation : parse(message)) {
-            Debug.log("Observed {}", observation);
+            if (PlayerProfiles.getInstance().record(observation)) {
+                Debug.log("Observed {}", observation);
+            }
         }
     }
 
