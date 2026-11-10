@@ -6,6 +6,7 @@ import com.cruvex.cubecraftplus.debug.SignalProbe;
 import com.cruvex.cubecraftplus.events.HudEvents;
 import com.cruvex.cubecraftplus.events.PlayerEvents;
 import com.cruvex.cubecraftplus.events.ScoreboardEvents;
+import com.cruvex.cubecraftplus.profile.ProfileParser;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -80,6 +81,7 @@ public class ClientPacketListenerMixin {
             target = "Lnet/minecraft/client/multiplayer/chat/ChatListener;handleSystemMessage(Lnet/minecraft/network/chat/Component;Z)V"))
     private void onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
         ChatDump.onServerMessage(packet.content());
+        ProfileParser.onServerMessage(packet.content());
         if (ChatQueryManager.getInstance().onServerMessage(packet.content())) {
             ci.cancel();
         }

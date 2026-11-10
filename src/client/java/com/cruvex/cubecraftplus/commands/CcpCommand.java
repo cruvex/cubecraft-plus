@@ -26,7 +26,8 @@ public final class CcpCommand {
         if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
             root.then(ProbeCommand.node())
                     .then(QueryCommand.node())
-                    .then(AutoVoteCommand.node());
+                    .then(AutoVoteCommand.node())
+                    .then(PlayersCommand.node());
         }
         return root;
     }
