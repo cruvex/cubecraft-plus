@@ -40,6 +40,7 @@ public final class ProfileParser {
         for (PlayerObservation observation : parse(message)) {
             if (PlayerProfiles.getInstance().record(observation)) {
                 Debug.log("Observed {}", observation);
+                ObservationSender.getInstance().add(observation);
             }
         }
     }
