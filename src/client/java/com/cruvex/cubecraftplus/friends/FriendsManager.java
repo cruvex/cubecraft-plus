@@ -102,8 +102,9 @@ public class FriendsManager {
     private record Page(int number, int total, List<Friend> friends) {
     }
 
-    /** {@code names} is the format from before uuids were saved. */
-    private record Saved(long savedAt, @Nullable List<SavedFriend> friends, @Nullable List<String> names) {
+    /** {@code names} is the format from before uuids were saved; {@code unlisted} holds known uuids whose name left the list. */
+    private record Saved(long savedAt, @Nullable List<SavedFriend> friends, @Nullable List<String> names,
+                         @Nullable Map<String, UUID> unlisted) {
     }
 
     private record SavedFriend(String name, @Nullable UUID id) {
@@ -170,6 +171,7 @@ public class FriendsManager {
             int listed = pages.stream().mapToInt(page -> page.friends().size()).sum();
             if (friendMessages == messagesBefore && listed == loaded.size()) {
                 persist();
+                resolveUnlisted();
                 return CompletableFuture.completedFuture(loaded);
             }
             if (retried) {
@@ -343,6 +345,30 @@ public class FriendsManager {
         }
     }
 
+    /** Asks Mojang what each known uuid missing from the list is called now: a listed name is a rename, any other an unfriend. */
+    private void resolveUnlisted() {
+        // A copy, since a callback can land on this thread before the loop ends
+        Map.copyOf(ids).forEach((oldName, id) -> {
+            if (known(oldName)) return;
+
+            HeadResolver.getInstance().nameFor(id).thenAcceptAsync(name -> {
+                // No answer is retried next load; a changed entry was resolved meanwhile
+                if (name == null || known(oldName) || !id.equals(ids.get(oldName))) return;
+
+                ids.remove(oldName);
+                boolean renamed = friends.stream().anyMatch(friend -> friend.name().equalsIgnoreCase(name) && friend.id() == null);
+                if (renamed) {
+                    Debug.log("Friends: {} renamed to {}", oldName, name);
+                    ids.put(name.toLowerCase(Locale.ROOT), id);
+                    friends = identified(friends);
+                } else {
+                    Debug.log("Friends: {} is no longer a friend", oldName);
+                }
+                persist();
+            }, Minecraft.getInstance());
+        });
+    }
+
     /** The uuid of a friend known to be online, e.g. from a message; looked up if not certain yet, null if Mojang has none. */
     public CompletableFuture<UUID> confirmOnline(String name) {
         String key = name.toLowerCase(Locale.ROOT);
@@ -375,12 +401,16 @@ public class FriendsManager {
         UUID account = account();
         if (account != null) {
             // Last session's list, until the load below replaces it
-            friends = loadSaved(account);
+            Saved saved = loadSaved(account);
+            friends = savedFriends(saved);
             ids.clear();
             for (Friend friend : friends) {
                 if (friend.id() != null) {
                     ids.put(friend.name().toLowerCase(Locale.ROOT), friend.id());
                 }
+            }
+            if (saved != null && saved.unlisted() != null) {
+                ids.putAll(saved.unlisted());
             }
         }
 
@@ -395,25 +425,28 @@ public class FriendsManager {
                 }));
     }
 
-    /** The saved friends, all offline. */
-    private static List<Friend> loadSaved(UUID account) {
+    private static @Nullable Saved loadSaved(UUID account) {
         Path path = ModPaths.friends(account);
-        if (!Files.exists(path)) return List.of();
+        if (!Files.exists(path)) return null;
 
         try (Reader reader = Files.newBufferedReader(path)) {
-            Saved saved = GSON.fromJson(reader, Saved.class);
-            if (saved == null) return List.of();
-            if (saved.friends() != null) {
-                return saved.friends().stream().map(friend -> new Friend(friend.name(), friend.id(), false, "")).toList();
-            }
-            if (saved.names() != null) {
-                return saved.names().stream().map(name -> new Friend(name, false, "")).toList();
-            }
-            return List.of();
+            return GSON.fromJson(reader, Saved.class);
         } catch (IOException | JsonParseException e) {
             CubeCraftPlusClient.LOGGER.warn("Failed to read {}, ignoring it", ModPaths.display(path), e);
-            return List.of();
+            return null;
         }
+    }
+
+    /** The saved friends, all offline. */
+    private static List<Friend> savedFriends(@Nullable Saved saved) {
+        if (saved == null) return List.of();
+        if (saved.friends() != null) {
+            return saved.friends().stream().map(friend -> new Friend(friend.name(), friend.id(), false, "")).toList();
+        }
+        if (saved.names() != null) {
+            return saved.names().stream().map(name -> new Friend(name, false, "")).toList();
+        }
+        return List.of();
     }
 
     private void persist() {
@@ -422,7 +455,11 @@ public class FriendsManager {
 
         Path path = ModPaths.friends(account);
         List<SavedFriend> saving = friends.stream().map(friend -> new SavedFriend(friend.name(), friend.id())).toList();
-        Saved saved = new Saved(System.currentTimeMillis(), saving, null);
+        Map<String, UUID> unlisted = new HashMap<>();
+        ids.forEach((name, id) -> {
+            if (!known(name)) unlisted.put(name, id);
+        });
+        Saved saved = new Saved(System.currentTimeMillis(), saving, null, unlisted);
         try {
             Files.createDirectories(path.getParent());
             try (Writer writer = Files.newBufferedWriter(path)) {

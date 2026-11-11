@@ -131,6 +131,15 @@ public class HeadResolver {
         return skin == null ? null : skin.getHash();
     }
 
+    /** A uuid's current name from Mojang, or null when there is no answer right now. */
+    public CompletableFuture<@Nullable String> nameFor(UUID id) {
+        SessionService sessions = Minecraft.getInstance().services().sessionService();
+        return CompletableFuture.supplyAsync(() -> {
+            ProfileResult result = sessions.fetchProfile(id, false);
+            return result == null ? null : result.profile().name();
+        }, Util.nonCriticalIoPool());
+    }
+
     /** Writes the heads to disk if any changed since the last save. */
     public void saveHeads() {
         if (!headsChanged) return;
