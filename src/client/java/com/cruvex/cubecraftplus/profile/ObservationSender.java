@@ -71,8 +71,11 @@ public class ObservationSender {
         client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).whenComplete((response, error) -> {
             if (error != null) {
                 Debug.log("Observations: sending {} failed: {}", batch.size(), error.toString());
+            } else if (response.statusCode() >= 300) {
+                Debug.log("Observations: sending {} failed, API answered {} {}", batch.size(), response.statusCode(), response.body());
             } else {
-                Debug.log("Observations: sent {}, API answered {} {}", batch.size(), response.statusCode(), response.body());
+                CubeCraftPlusClient.LOGGER.debug("Observations: sent {}, API answered {} {}",
+                        batch.size(), response.statusCode(), response.body());
             }
         });
     }

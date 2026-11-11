@@ -33,13 +33,21 @@ public class Debug {
         toChat(message, args);
     }
 
+    public static void log(Component message) {
+        CubeCraftPlusClient.LOGGER.debug(message.getString());
+        toChat(message);
+    }
+
     private static void toChat(String message, Object... args) {
+        toChat(Component.literal(MessageFormatter.arrayFormat(message, args).getMessage()));
+    }
+
+    private static void toChat(Component message) {
         if (!enabled) {
             return;
         }
 
-        String formatted = MessageFormatter.arrayFormat(message, args).getMessage();
         Chat.send(Component.literal("[Debug] ").withStyle(ChatFormatting.DARK_GRAY)
-                .append(Component.literal(formatted).withStyle(ChatFormatting.GRAY)));
+                .append(message.copy().withStyle(ChatFormatting.GRAY)));
     }
 }

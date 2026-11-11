@@ -37,12 +37,37 @@ public final class ProfileParser {
     }
 
     public static void onServerMessage(Component message) {
-        for (PlayerObservation observation : parse(message)) {
-            if (PlayerProfiles.getInstance().record(observation)) {
-                Debug.log("Observed {}", observation);
+        List<PlayerObservation> observations = parse(message);
+        if (observations.isEmpty()) return;
+
+        List<String> lines = new ArrayList<>();
+        int news = 0;
+        for (PlayerObservation observation : observations) {
+            boolean isNews = PlayerProfiles.getInstance().record(observation);
+            if (isNews) {
                 ObservationSender.getInstance().add(observation);
+                news++;
             }
+            lines.add(describe(observation, isNews));
         }
+
+        PlayerObservation first = observations.getFirst();
+        String summary = observations.size() == 1
+                ? "Observed " + first.name() + note(first, news == 1)
+                : "Observed " + observations.size() + " players (" + news + " new)";
+        Component hover = Component.literal(String.join("\n", lines));
+        Debug.log(Component.literal(summary).withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(hover))));
+    }
+
+    private static String describe(PlayerObservation observation, boolean news) {
+        UUID uuid = observation.uuid();
+        return observation.name() + " " + observation.ranks() + (observation.legacy() ? " legacy" : "")
+                + ", level " + observation.level() + note(observation, news)
+                + "\n  " + (uuid == null ? "not in the tab list" : uuid);
+    }
+
+    private static String note(PlayerObservation observation, boolean news) {
+        return observation.uuid() == null ? " (no uuid, not stored)" : news ? "" : " (unchanged)";
     }
 
     public static List<PlayerObservation> parse(Component message) {

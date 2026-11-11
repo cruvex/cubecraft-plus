@@ -19,6 +19,7 @@ import com.cruvex.cubecraftplus.game.GameManager;
 import com.cruvex.cubecraftplus.game.GameRegistry;
 import com.cruvex.cubecraftplus.keybinds.KeyBindManager;
 import com.cruvex.cubecraftplus.leaderboard.LeaderboardSubmitManager;
+import com.cruvex.cubecraftplus.profile.AutoOnline;
 import com.cruvex.cubecraftplus.profile.ObservationSender;
 import com.cruvex.cubecraftplus.update.UpdateChecker;
 import net.fabricmc.api.ClientModInitializer;
@@ -60,6 +61,7 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         CubeSocket.getInstance().init();
         UpdateChecker.getInstance().init();
         ObservationSender.getInstance().init();
+        AutoOnline.getInstance().init();
     }
 
     /** Runs on every join, not once at startup, since this data changes server-side. */
