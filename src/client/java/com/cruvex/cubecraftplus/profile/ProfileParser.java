@@ -95,7 +95,7 @@ public final class ProfileParser {
             if (!name.find() || !level.find()) return;
 
             Matcher ranksLine = RANKS.matcher(text);
-            List<Rank> ranks = ranksLine.find() ? Rank.parse(ranksLine.group(1)) : List.of();
+            List<Rank> ranks = ranksLine.find() ? Rank.parse(ranksLine.group(1), name.group(1)) : List.of();
             Boolean legacy = isBold || ranks.stream().noneMatch(Rank::hasLegacy) ? Boolean.FALSE
                     : online ? Boolean.TRUE : null;
             observations.add(new PlayerObservation(name.group(1), uuid(name.group(1)), ranks, legacy,

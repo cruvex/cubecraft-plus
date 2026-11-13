@@ -1,12 +1,12 @@
 package com.cruvex.cubecraftplus.profile;
 
 import com.cruvex.cubecraftplus.debug.Debug;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
-/** CubeCraft ranks by the resource pack glyph that draws their badge. */
+/** CubeCraft ranks by the resource pack glyph that draws their badge, or by name for the ones written as text. */
 public enum Rank {
     ADMIN(''),
     MOD(''),
@@ -25,7 +25,9 @@ public enum Rank {
     OBSIDIAN(''),
     EMERALD(''),
     GOLD(''),
-    LAPIS('');
+    LAPIS(''),
+    /** A retired rank some players still have, shown as text. */
+    PLUS('\0');
 
     private final char glyph;
 
@@ -38,24 +40,22 @@ public enum Rank {
         return this == IRON || this == DIAMOND || this == OBSIDIAN;
     }
 
-    public static List<Rank> parse(String glyphs) {
+    /** Reads a profile's "Ranks:" line: glyphs and words separated by spaces or commas. */
+    public static List<Rank> parse(String line, String player) {
         List<Rank> ranks = new ArrayList<>();
-        for (char c : glyphs.toCharArray()) {
-            if (Character.isWhitespace(c)) continue;
+        for (String part : line.split("[\\s,]+")) {
+            if (part.isEmpty()) continue;
 
-            Rank rank = byGlyph(c);
-            if (rank != null) {
-                ranks.add(rank);
-            } else {
-                Debug.log("Unknown rank glyph U+{}", String.format(Locale.ROOT, "%04X", (int) c));
-            }
+            Rank rank = find(part);
+            if (rank != null) ranks.add(rank);
+            else Debug.log("Unknown rank '{}' for {}", part, player);
         }
         return ranks;
     }
 
-    private static Rank byGlyph(char glyph) {
+    private static @Nullable Rank find(String part) {
         for (Rank rank : values()) {
-            if (rank.glyph == glyph) return rank;
+            if (part.length() == 1 ? rank.glyph == part.charAt(0) : rank.name().equalsIgnoreCase(part)) return rank;
         }
         return null;
     }
