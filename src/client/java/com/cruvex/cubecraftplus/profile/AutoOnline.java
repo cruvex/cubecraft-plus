@@ -39,6 +39,8 @@ public class AutoOnline {
     }
 
     public void init() {
+        if (!ObservationSender.getInstance().isEnabled()) return;
+
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             joined = true;

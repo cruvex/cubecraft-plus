@@ -45,6 +45,10 @@ public class ObservationSender {
         ClientTickEvents.END_CLIENT_TICK.register(client -> flush());
     }
 
+    public boolean isEnabled() {
+        return endpoint != null;
+    }
+
     public void add(PlayerObservation observation) {
         if (endpoint != null && observation.uuid() != null) {
             pending.add(observation);
