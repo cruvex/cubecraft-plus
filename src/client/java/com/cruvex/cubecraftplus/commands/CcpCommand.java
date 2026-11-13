@@ -20,6 +20,7 @@ public final class CcpCommand {
                 .then(ConfigCommand.node())
                 .then(FriendsCommand.node())
                 .then(VersionCommand.node())
+                .then(AuthCommand.node())
                 .then(ChestFinderCommand.node())
                 .then(DebugCommand.node());
 

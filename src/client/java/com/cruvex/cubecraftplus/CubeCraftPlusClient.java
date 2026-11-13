@@ -1,5 +1,6 @@
 package com.cruvex.cubecraftplus;
 
+import com.cruvex.cubecraftplus.api.AuthManager;
 import com.cruvex.cubecraftplus.autovote.AutoVoteConfigs;
 import com.cruvex.cubecraftplus.autovote.AutoVoteManager;
 import com.cruvex.cubecraftplus.autovote.MenuTracker;
@@ -58,6 +59,7 @@ public class CubeCraftPlusClient implements ClientModInitializer {
         LeaderboardSubmitManager.getInstance().init();
         CubeSocket.getInstance().init();
         UpdateChecker.getInstance().init();
+        AuthManager.getInstance().init();
     }
 
     /** Runs on every join, not once at startup, since this data changes server-side. */
