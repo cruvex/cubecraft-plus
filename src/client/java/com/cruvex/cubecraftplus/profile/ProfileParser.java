@@ -37,7 +37,9 @@ public final class ProfileParser {
     }
 
     public static void onServerMessage(Component message) {
-        List<PlayerObservation> observations = parse(message);
+        List<PlayerObservation> observations = parse(message).stream()
+                .map(PlayerProfiles.getInstance()::withKnownLegacy)
+                .toList();
         if (observations.isEmpty()) return;
 
         List<String> lines = new ArrayList<>();
@@ -61,19 +63,22 @@ public final class ProfileParser {
 
     private static String describe(PlayerObservation observation, boolean news) {
         UUID uuid = observation.uuid();
-        return observation.name() + " " + observation.ranks() + (observation.legacy() ? " legacy" : "")
+        return observation.name() + " " + observation.ranks() + (Boolean.TRUE.equals(observation.legacy()) ? " legacy" : "")
                 + ", level " + observation.level() + note(observation, news)
                 + "\n  " + (uuid == null ? "not in the tab list" : uuid);
     }
 
     private static String note(PlayerObservation observation, boolean news) {
-        return observation.uuid() == null ? " (no uuid, not stored)" : news ? "" : " (unchanged)";
+        if (observation.uuid() == null) return " (no uuid, not stored)";
+        if (observation.legacy() == null) return " (legacy unknown, not stored)";
+        return news ? "" : " (unchanged)";
     }
 
     public static List<PlayerObservation> parse(Component message) {
         Instant now = Instant.now();
+        // Bold means a subscription rank anywhere, but only /online bolds reliably; kill messages never do
+        boolean online = ONLINE_HEADER.matcher(message.getString()).find();
 
-        // Subscription ranks show the name in bold, legacy ones don't
         Map<Component, Boolean> bold = new LinkedHashMap<>();
         message.visit((style, text) -> {
             if (style.getHoverEvent() instanceof HoverEvent.ShowText(Component profile) && !text.isBlank()) {
@@ -91,7 +96,8 @@ public final class ProfileParser {
 
             Matcher ranksLine = RANKS.matcher(text);
             List<Rank> ranks = ranksLine.find() ? Rank.parse(ranksLine.group(1)) : List.of();
-            boolean legacy = !isBold && ranks.stream().anyMatch(Rank::hasLegacy);
+            Boolean legacy = isBold || ranks.stream().noneMatch(Rank::hasLegacy) ? Boolean.FALSE
+                    : online ? Boolean.TRUE : null;
             observations.add(new PlayerObservation(name.group(1), uuid(name.group(1)), ranks, legacy,
                     Integer.parseInt(level.group(1)), now));
         });

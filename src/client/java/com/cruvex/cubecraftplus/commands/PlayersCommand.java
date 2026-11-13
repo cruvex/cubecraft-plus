@@ -35,7 +35,7 @@ public final class PlayersCommand {
         source.sendFeedback(Component.literal("Players: ").withStyle(ChatFormatting.AQUA)
                 .append(Component.literal(String.valueOf(players.size())).withStyle(ChatFormatting.GRAY)));
         for (PlayerObservation player : players) {
-            String details = " " + player.uuid() + " " + player.ranks() + (player.legacy() ? " legacy" : "")
+            String details = " " + player.uuid() + " " + player.ranks() + (Boolean.TRUE.equals(player.legacy()) ? " legacy" : "")
                     + ", level " + player.level();
             source.sendFeedback(Component.literal(player.name()).withStyle(ChatFormatting.WHITE)
                     .append(Component.literal(details).withStyle(ChatFormatting.GRAY)));
