@@ -84,8 +84,8 @@ public class ObservationSender {
             } else if (response.statusCode() >= 300) {
                 Debug.log("Observations: sending {} failed, API answered {} {}", batch.size(), response.statusCode(), response.body());
             } else {
-                CubeCraftPlusClient.LOGGER.debug("Observations: sent {}, API answered {} {}",
-                        batch.size(), response.statusCode(), response.body());
+                Summary summary = gson.fromJson(response.body(), Summary.class);
+                Debug.log("Observations: sent {} ({} inserted, {} updated)", batch.size(), summary.inserted(), summary.updated());
             }
         });
     }
@@ -93,6 +93,9 @@ public class ObservationSender {
     private static @Nullable URI endpoint() {
         String base = System.getProperty(API_PROPERTY);
         return base == null ? null : URI.create(base.replaceAll("/+$", "") + "/api/observations");
+    }
+
+    private record Summary(int inserted, int updated) {
     }
 
     private record Entry(String uuid, String name, List<String> ranks, boolean legacy, int level, String observedAt) {
