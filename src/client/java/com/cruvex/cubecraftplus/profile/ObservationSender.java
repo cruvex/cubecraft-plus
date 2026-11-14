@@ -4,6 +4,7 @@ import com.cruvex.cubecraftplus.CubeCraftPlusClient;
 import com.cruvex.cubecraftplus.debug.Debug;
 import com.google.gson.Gson;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import org.jetbrains.annotations.Nullable;
 
 import java.net.URI;
@@ -43,6 +44,11 @@ public class ObservationSender {
         CubeCraftPlusClient.LOGGER.info("Observations: sending to {}",
                 endpoint == null ? "nowhere, no API configured" : endpoint);
         ClientTickEvents.END_CLIENT_TICK.register(client -> flush());
+        // Can fire off the client thread; the game keeps running at the menu, so the send gets to finish
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
+            nextFlushAt = 0;
+            flush();
+        }));
     }
 
     public boolean isEnabled() {
